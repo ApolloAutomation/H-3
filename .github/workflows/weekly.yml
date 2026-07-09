@@ -1,0 +1,17 @@
+name: Weekly Firmware Build
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Weekly Build
+    uses: ApolloAutomation/Workflows/.github/workflows/esphome-ci.yml@main
+    with:
+      # TODO: Rename to this product's YAML files
+      yaml-files: |
+        Integrations/ESPHome/AIR-1.yaml

@@ -1,0 +1,20 @@
+name: Auto Assign
+
+on:
+  issues:
+    types: [opened]
+  pull_request:
+    types: [opened]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  auto-assign:
+    # Skip auto-assign for pull requests from forks due to GITHUB_TOKEN permission restrictions
+    if: github.event_name == 'issues' || github.event.pull_request.head.repo.full_name == github.repository
+    uses: ApolloAutomation/Workflows/.github/workflows/autoassign.yml@main
+    with:
+      assignees: TrevorSchirmer
+      num-of-assignees: 1

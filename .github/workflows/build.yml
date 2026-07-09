@@ -1,0 +1,35 @@
+name: Build and Publish
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      bypass-yaml-check:
+        description: 'Bypass YAML change check (force build/publish)'
+        type: boolean
+        required: false
+        default: false
+
+jobs:
+  build-and-publish:
+    uses: ApolloAutomation/Workflows/.github/workflows/build.yml@main
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+      pull-requests: write
+    with:
+      # TODO: Rename to this product's device name and YAML files
+      device-name: producttemplate
+      yaml-files: |
+        Integrations/ESPHome/AIR-1.yaml
+      firmware-names: ":firmware"
+      core-yaml-path: Integrations/ESPHome/Core.yaml
+      esphome-version: stable
+      # Bypass check if manually triggered with bypass option
+      check-yaml-changes: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.bypass-yaml-check == 'true') }}
+      publish-to-pages: true
+      has-installer: true
+      installer-path: static

@@ -1,0 +1,15 @@
+# Action version pins live in ApolloAutomation/Workflows (reusable workflows
+# referenced @main), so this config normally has nothing to update. It stays
+# as a safety net in case a version-pinned action is added here later.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "chore(ci): "
+    groups:
+      github-actions:
+        patterns:
+          - "*"
