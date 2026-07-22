@@ -21,11 +21,11 @@ jobs:
       id-token: write
       pull-requests: write
     with:
-      # TODO: Rename to this product's device name and YAML files
-      device-name: producttemplate
+      device-name: h-3
       yaml-files: |
-        Integrations/ESPHome/AIR-1.yaml
-      firmware-names: ":firmware"
+        Integrations/ESPHome/H-3.yaml
+        Integrations/ESPHome/H-3D.yaml
+      firmware-names: "3:firmware,3D:firmware-d"
       core-yaml-path: Integrations/ESPHome/Core.yaml
       esphome-version: stable
       # Bypass check if manually triggered with bypass option

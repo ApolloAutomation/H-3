@@ -1,23 +1,16 @@
-# Apollo AIR-1
+# Apollo H-3 Holiday Ornament
 
-![Pen no dust](https://github.com/ApolloAutomation/AIR-1/assets/24777085/183af36d-4611-4cb3-af1e-43b84d4d201a)
+**Key Features of the H-3:**
 
+- USB-C or battery powered ornament with 37 controllable RGB LEDs across five zones and a buzzer to play holiday tunes
+- Individually controllable body (24 LEDs), hat (5 LEDs), mouth (5 LEDs), eyes (2 LEDs), and nose (1 LED)
+- Comes preloaded with 4 holiday tunes and RGB LED patterns
+- Comes flashed with basic firmware but can be flashed with our smart firmware to connect and control from Home Assistant
+- Could also be used as a bluetooth proxy or bluetooth tracker
+- Features an ESP32-C6 processor with 8MB flash
 
-Key Features of the AIR-1 Sensor:
+## Links
 
-MiCS-4514 Below have individual gas % readout: CO, C2H5OH (Alcohol), H2, NO2, and NH3
-
-SCD40: CO2 and includes temperature and humidity sensing capabilities. 
-
-SEN55: Particulate matter (PM1, PM2.5, PM10), VOCs, NOx, humidity, and temperature. 
-
-DPS310: Barometric air pressure and temperature.
-
-Dimensions & Design: 
-
-The AIR-1 measures just 61mm x 61mm x 30mm, and we have focused on efficient heat management within this small package to maintain sensor accuracy. This includes a thoughtful PCB layout and case design, incorporating ventilation and strategic component placement. 
-
-Links: \
-Discord (Support/feedback/discussion/future products): [https://discord.gg/8PpS4yUaUh](https://discord.gg/mMNgQPyF94) \
-Shop: [https://apolloautomation.com](https://apolloautomation.com/products/air-1)https://apolloautomation.com/products/air-1 \
-Wiki: [https://wiki.apolloautomation.com](https://wiki.apolloautomation.com/)https://wiki.apolloautomation.com/ 
+Discord (Support/feedback/discussion/future products): [http://dsc.gg/ApolloAutomation](http://dsc.gg/ApolloAutomation)  
+Shop: [https://apolloautomation.com](https://apolloautomation.com)  
+Wiki: [https://wiki.apolloautomation.com](https://wiki.apolloautomation.com)
