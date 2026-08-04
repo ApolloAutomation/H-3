@@ -1,5 +1,52 @@
-substitutions:
-  version: "25.12.2.1"
+# ============================================================================
+# H-3_Simple.yaml - bench / bring-up firmware for H-3 (no deep sleep, no HA
+# dependency). Wifi + captive portal + web server + API + OTA, nothing else.
+#
+# LED WIRING (this is the reworked build):
+#   GPIO3 -> ONE chain of 32 LEDs:  body(24) -> nose(1) -> eyes(2) -> hat(5)
+#   GPIO2 -> mouth, 5 LEDs, still its own strip
+#
+#   The ESP32-C6 has only TWO TX RMT channels. The old config declared five
+#   esp32_rmt_led_strip lights, so the last three (eyes/nose/hat) failed at
+#   setup with "rmt_tx_wait_all_done(586): invalid argument" and never lit.
+#   Two strips = two channels = nothing to run out of.
+#
+# INDEX MAP into the 32-LED chain (partition from/to are INCLUSIVE):
+#   body 0..23   nose 24   eyes 25..26   hat 27..31
+#   If a segment lights the wrong LEDs, only these numbers need to change -
+#   nothing else in the file cares.
+#
+# ENTITIES
+#   "Whole Face" (led_chain)  - all 32 LEDs as ONE canvas. Run an effect here
+#                               and it sweeps body->nose->eyes->hat as a single
+#                               continuous animation. This is the "one big
+#                               effect" view.
+#   "Body/Nose/Eyes/Hat Light" - partition views into that same chain. Same ids
+#                               and names as the old separate strips, so the
+#                               song scripts and HA entities are unchanged.
+#   "Mouth Light"             - the second physical strip on GPIO2.
+#
+#   Drive EITHER the whole chain OR the partitions at any one time; if both run
+#   effects at once they fight over the same pixels and flicker. The song
+#   scripts use the partitions; play_song_x demos the whole-chain version.
+#
+# color_correct is a strip-level setting, so all 32 chain LEDs now share the
+# body's 40% (nose/eyes/hat used to be 30% and will look brighter).
+#
+# Flash (boot mode: hold USR/BOOT, tap RST, release):
+#   esphome run H-3_Simple.yaml
+# Reattach to logs later:
+#   esphome logs H-3_Simple.yaml --device /dev/cu.usbmodem*
+#
+# debug: prints the RESET REASON at boot and every 60s - that is where a
+# brownout from the LED rail shows up.
+# ============================================================================
+
+esphome:
+  name: "h3-simple"
+  friendly_name: H-3 Simple Test
+  platformio_options:
+    board_build.flash_mode: dio
 
 esp32:
   board: esp32-c6-devkitm-1
@@ -8,53 +55,34 @@ esp32:
   framework:
     type: esp-idf
 
-output:
-  - platform: ledc
-    pin: GPIO6
-    id: buzzer
-    max_power: 50%
+logger:
+  level: DEBUG
 
-rtttl:
-  id: rtttl_buzzer
-  output: buzzer
+# Prints chip info + RESET REASON at boot and every 60s - the brownout proof
+# lands here on the boot AFTER a crash.
+debug:
+  update_interval: 60s
 
-globals:
-  - id: cycleCounter
-    type: int
-    restore_value: no
-    initial_value: '0'
-  - id: button_press_timestamp
-    restore_value: no
-    type: uint32_t
-    initial_value: '0'
-  - id: runTest
-    restore_value: yes
-    type: bool
-    initial_value: "true"
-  - id: testCycleCount
-    type: int
-    restore_value: no
-    initial_value: "0"
+wifi:
+  ap:
+    ssid: "Apollo H3 Hotspot"
 
-deep_sleep:
-  id: deep_sleep_1
-  sleep_duration: 24h
-  run_duration: 90s
-  esp32_ext1_wakeup:
-    mode: ANY_HIGH
-    pins:
-      - number: GPIO4
-        allow_other_uses: true
-      - number: GPIO5
-        allow_other_uses: true
-      - number: GPIO7
-        allow_other_uses: true
+captive_portal:
+
+ota:
+  - platform: esphome
+    id: ota_esphome
+
+web_server:
+  port: 80
+  version: 3
+
+api:
 
 switch:
   - platform: factory_reset
     id: factory_reset_switch
     internal: true
-
   - platform: gpio
     pin: GPIO18
     name: "Accessory Power"
@@ -63,238 +91,23 @@ switch:
     setup_priority: 2000
     internal: true
 
-button:
-  - platform: factory_reset
-    id: factory_reset_button
-    name: "Factory Reset"
-    entity_category: diagnostic
-    internal: true
-  - platform: template
-    id: btn_play_song_1
-    name: "Play Song 1"
-    on_press:
-      then:
-        - script.execute: play_song_1
-  - platform: template
-    id: btn_play_song_2
-    name: "Play Song 2"
-    on_press:
-      then:
-        - script.execute: play_song_2
-  - platform: template
-    id: btn_play_song_3
-    name: "Play Song 3"
-    on_press:
-      then:
-        - script.execute: play_song_3
-  - platform: template
-    id: btn_play_song_4
-    name: "Play Song 4"
-    on_press:
-      then:
-        - script.execute: play_song_4
-
-number:
-  - platform: template
-    name: "Sleep Duration"
-    id: deep_sleep_sleep_duration
-    min_value: 0
-    max_value: 800
-    step: 1
-    mode: box
-    update_interval: never
-    optimistic: true
-    restore_value: true
-    initial_value: 24
-    icon: "mdi:arrow-collapse-right"
-    entity_category: CONFIG
-    unit_of_measurement: "h"
-    on_value:
-      then:
-        - lambda: |-
-            id(deep_sleep_1).set_sleep_duration(x * 60 * 60 * 1000);
-
-  - platform: template
-    name: Volume
-    id: volume_control
-    min_value: 0
-    max_value: 100
-    initial_value: 50
-    unit_of_measurement: "%"
-    step: 1
-    optimistic: true
-    restore_value: true
-    on_value:
-      - lambda: id(rtttl_buzzer).set_gain(pow(x / 100.0f, 3));
-
-text_sensor:
-  - platform: template
-    id: wakeup_button_pressed
-    name: "Wake-up Button Pressed"
-    icon: "mdi:gesture-tap-button"
-
-text:
-  - platform: template
-    name: "Song Text 1"
-    id: song_1
-    icon: mdi:music-note
-    entity_category: "config"
-    restore_value: true
-    mode: text
-    optimistic: true
-    initial_value: "jingle:d=8,o=5,b=120:e6,e6,e.6,16p,e6,e6,e.6,16p,e6,g6,c.6,16d6,e.6,p,f6,f6,f.6,16f6,f6,e6,e6,16e6,16e6,e6,d6,d6,e6,d.6,16p,g6,p,e6,e6,e.6,16p,e6,e6,e.6,16p,e6,g6,c.6,16d6,2e6,f6,f6,f.6,16f6,f6,e6,e6,16e6,16e6,g6,g6,f6,d6,2c6;"
-  - platform: template
-    name: "Song Text 2"
-    id: song_2
-    icon: mdi:music-note
-    entity_category: "config"
-    restore_value: true
-    mode: text
-    optimistic: true
-    initial_value: "rudolph:d=4,o=5,b=125:8g.,16a,8p,16g.,e,c6,a,2g.,8g.,16a,8g.,16a,g,c6,1b,8f.,16g,8p,16f.,d,b,a,2g.,8g.,16a,8g.,16a,g,a,1e,8g.,16a,8p,16g.,e,c6,a,1g,8g.,16a,8g.,16a,g,c6,1b,8f.,16g,8p,16f.,d,b,a,1g,8g.,16a,8g.,16a,g,d6,2c6;"
-  - platform: template
-    name: "Song Text 3"
-    id: song_3
-    icon: mdi:music-note
-    entity_category: "config"
-    restore_value: true
-    mode: text
-    optimistic: true
-    initial_value: "snow:d=4,o=5,b=125:8c,8c,8c6,8c6,a#,a,g,f,2c,8c,16c,g.,8f,g.,8f,e,2c,d,8d6,8d6,c6,a#,a,2g.,8e.6,16d6,c6,8c.6,16a#,a,8a.,16g,2f.,c,8c6,8c6,a#,a,g,f,2c,8c.,16c,g.,8f,g.,8f,e,2c,d,8d6,8d6,c6,a#,a,2g.,8e.6,16d6,c6,8c.6,16a#,a,8a.,16g,2f.;"
-  - platform: template
-    name: "Song Text 4"
-    id: song_4
-    icon: mdi:music-note
-    entity_category: "config"
-    restore_value: true
-    mode: text
-    optimistic: true
-    initial_value: "bluechristmas:d=4,o=5,b=90:8c,f,g,1a,16a,16g,16a,2g,f,e,2g.,c,g.,8a,2a#.,16a#,16c6,16a#,32c6,16a#,2a.,g,f,2a,8a,8a#,8a,2c.6,8a#,c6,8a#.,2a,2c.6,8a#,8a.,2g,g,1a,2a,g,8f,2a,g,f,e,e,f,f#,g."
-
-binary_sensor:
-  - platform: gpio
-    pin:
-      number: GPIO9
-      inverted: true
-      mode:
-        input: true
-        pullup: true
-      ignore_strapping_warning: true
-    id: reset_button
-    on_press:
-      then:
-        - lambda: |-
-            id(button_press_timestamp) = millis();
-    on_release:
-      then:
-        - lambda: |-
-            if (millis() - id(button_press_timestamp) >= 10000) {
-              // Remove Wifi
-              id(factory_reset_switch).turn_on();
-            }
-            else if (millis() - id(button_press_timestamp) >= 3000) {
-              //Turn Prevent Sleep On
-              id(prevent_sleep).turn_on();
-              //Prevent Sleep
-              id(deep_sleep_1).prevent_deep_sleep();
-            }
-            else {
-              // StatusCheck
-              id(statusCheck).execute();
-              delay(3000);
-              id(testCycleCount) = 0;
-              id(runTest) = true;
-              id(testScript).execute();
-            }
-
-  # H-3 Individual Song Buttons (3 buttons)
-  - platform: gpio
-    id: back_button_1
-    pin:
-      number: GPIO4
-      mode:
-        input: true
-        pulldown: true
-      allow_other_uses: true
-    name: "Song Button 1"
-    on_release:
-      then:
-        - script.execute: play_song_1
-
-  - platform: gpio
-    id: back_button_2
-    pin:
-      number: GPIO5
-      mode:
-        input: true
-        pulldown: true
-      allow_other_uses: true
-    name: "Song Button 2"
-    on_release:
-      then:
-        - script.execute: play_song_2
-
-  - platform: gpio
-    id: back_button_3
-    pin:
-      number: GPIO7
-      mode:
-        input: true
-        pulldown: true
-      allow_other_uses: true
-    name: "Song Button 3"
-    on_multi_click:
-    - timing:
-        - ON for at most 1s
-        - OFF for at most 1s
-        - ON for at most 1s
-        - OFF for at least 0.2s
-      then:
-        - script.execute: play_song_4
-    - timing:
-        - ON for at most 1s
-        - OFF for at least 0.5s
-      then:
-        - script.execute: play_song_3
-
-sensor:
-  - platform: internal_temperature
-    name: "ESP Temperature"
-    id: sys_esp_temperature
-
-  - platform: uptime
-    name: Uptime
-    id: sys_uptime
-    update_interval: 60s
 
 light:
-  # All 37 LEDs now hang off ONE data line on GPIO3, wired in this order:
-  #
-  #   body(24) -> mouth(5) -> nose(1) -> eyes(2) -> hat(5)
-  #
-  # INDEX MAP into the chain (partition from/to are INCLUSIVE):
-  #   body   0-23    mouth  24-28    nose   29    eyes   30-31    hat    32-36
-  #
-  # If a segment lights the wrong LEDs, only the from/to numbers below need to
-  # change - nothing else in this file cares about the layout.
-  #
-  # The chain itself is internal: it exists only as the physical output. The
-  # five partitions below are views into it and keep the ORIGINAL ids and
-  # names, so every script here and every HA automation keeps working. Do not
-  # expose the chain as its own entity unless you also stop using the
-  # partitions - turning the parent on/off rewrites the whole buffer and
-  # stomps on whatever the segments are doing.
+  # ---- THE PHYSICAL STRIP ------------------------------------------------
+  # ONE data line on GPIO3 now drives 32 LEDs, wired in this order:
+  #     body(24) -> nose(1) -> eyes(2) -> hat(5)
+  # Mouth(5) stays on GPIO2, which is the 2nd (and last) TX RMT channel the
+  # ESP32-C6 has. That is the whole point of the rework: 2 strips, 2 channels.
+  # Turn "Whole Face" on to run ONE effect across all 32 LEDs as one canvas.
   - platform: esp32_rmt_led_strip
     id: led_chain
-    internal: true
+    name: "Whole Face"
     pin: GPIO3
     default_transition_length: 0s
     chipset: WS2812
-    num_leds: 37
+    num_leds: 32
     rgb_order: grb
-    rmt_symbols: 48
-    # One data line = one color correction for every segment. Body used to be
-    # 40% and the head parts 30%, so nose/eyes/hat/mouth now run brighter.
+    rmt_symbols: 96
     color_correct: [40%, 40%, 40%]
     effects: &led_effects
       - pulse:
@@ -535,11 +348,10 @@ light:
               it[i] = Color(red_val, green_val, blue_val);
             }
 
-  # ---- SEGMENT VIEWS into the chain (from/to are INCLUSIVE) ---------------
-  # Effects run per segment: an addressable_lambda sees only that segment's
-  # LEDs, so "RainbowWave" on the hat still spans exactly 5 pixels.
-
-  # LEDs 0-23
+  # ---- SEGMENT VIEWS into the chain (from/to are INCLUSIVE) --------------
+  # Same ids and names as the old separate strips, so every script and every
+  # Home Assistant entity keeps working untouched. color_correct lives on the
+  # chain only - adding it here too would apply the correction twice.
   - platform: partition
     id: body_light
     name: "Body Light"
@@ -548,45 +360,98 @@ light:
       - { id: led_chain, from: 0, to: 23 }
     effects: *led_effects
 
-  # LEDs 24-28
-  - platform: partition
-    id: mouth_light
-    name: "Mouth Light"
-    default_transition_length: 0s
-    segments:
-      - { id: led_chain, from: 24, to: 28 }
-    effects: *led_effects
-
-  # LED 29
   - platform: partition
     id: nose_light
     name: "Nose Light"
     default_transition_length: 0s
     segments:
-      - { id: led_chain, from: 29, to: 29 }
+      - { id: led_chain, from: 24, to: 24 }
     effects: *led_effects
 
-  # LEDs 30-31
   - platform: partition
     id: eyes_light
     name: "Eyes Light"
     default_transition_length: 0s
     segments:
-      - { id: led_chain, from: 30, to: 31 }
+      - { id: led_chain, from: 25, to: 26 }
     effects: *led_effects
 
-  # LEDs 32-36
   - platform: partition
     id: hat_light
     name: "Hat Light"
     default_transition_length: 0s
     segments:
-      - { id: led_chain, from: 32, to: 36 }
+      - { id: led_chain, from: 27, to: 31 }
     effects: *led_effects
+
+
+  - platform: esp32_rmt_led_strip
+    id: mouth_light
+    name: "Mouth Light"
+    pin: GPIO2
+    default_transition_length: 0s
+    chipset: WS2812
+    num_leds: 5
+    rgb_order: grb
+    rmt_symbols: 48
+    color_correct: [30%, 30%, 30%]
+    effects: *led_effects
+
+
+binary_sensor:
+  - platform: gpio
+    id: back_button_1
+    pin:
+      number: GPIO4
+      mode:
+        input: true
+        pulldown: true
+      #allow_other_uses: true
+    name: "Song Button 1"
+    on_release:
+      then:
+        - script.execute: play_song_1
+
+  - platform: gpio
+    id: back_button_2
+    pin:
+      number: GPIO5
+      mode:
+        input: true
+        pulldown: true
+      #allow_other_uses: true
+    name: "Song Button 2"
+    on_release:
+      then:
+        - script.execute: play_song_2
+
+  - platform: gpio
+    id: back_button_3
+    pin:
+      number: GPIO7
+      mode:
+        input: true
+        pulldown: true
+      #allow_other_uses: true
+    name: "Song Button 3"
+    on_multi_click:
+    - timing:
+        - ON for at most 1s
+        - OFF for at most 1s
+        - ON for at most 1s
+        - OFF for at least 0.2s
+      then:
+        - script.execute: play_song_4
+    - timing:
+        - ON for at most 1s
+        - OFF for at least 0.5s
+      then:
+        - script.execute: play_song_3
 
 script:
   - id: all_lights_off
     then:
+      - light.turn_off: led_chain
       - light.turn_off: body_light
       - light.turn_off: mouth_light
       - light.turn_off: eyes_light
@@ -615,11 +480,11 @@ script:
           brightness: 80%
           id: hat_light
           effect: "RainbowWave"
-      - rtttl.play:
-          rtttl: !lambda 'return id(song_1).state;'
+      #- rtttl.play:
+      #    rtttl: !lambda 'return id(song_1).state;'
       - delay: 30s
       - script.execute: all_lights_off
-      - script.execute: ShouldSleep
+      #- script.execute: ShouldSleep
 
   - id: play_song_2
     then:
@@ -643,11 +508,11 @@ script:
           brightness: 80%
           id: hat_light
           effect: "TwinklingWhite"
-      - rtttl.play:
-          rtttl: !lambda 'return id(song_2).state;'
+      #- rtttl.play:
+      #    rtttl: !lambda 'return id(song_2).state;'
       - delay: 30s
       - script.execute: all_lights_off
-      - script.execute: ShouldSleep
+      #- script.execute: ShouldSleep
 
   - id: play_song_3
     then:
@@ -671,11 +536,11 @@ script:
           brightness: 80%
           id: hat_light
           effect: "RedGreen"
-      - rtttl.play:
-          rtttl: !lambda 'return id(song_3).state;'
+      #- rtttl.play:
+      #    rtttl: !lambda 'return id(song_3).state;'
       - delay: 30s
       - script.execute: all_lights_off
-      - script.execute: ShouldSleep
+      #- script.execute: ShouldSleep
 
   - id: play_song_4
     then:
@@ -699,43 +564,33 @@ script:
           brightness: 80%
           id: hat_light
           effect: "TwinklingBlues"
-      - rtttl.play:
-          rtttl: !lambda 'return id(song_4).state;'
+      #- rtttl.play:
+      #    rtttl: !lambda 'return id(song_4).state;'
       - delay: 30s
       - script.execute: all_lights_off
-      - script.execute: ShouldSleep
+      #- script.execute: ShouldSleep
 
   - id: play_song_x
     then:
+      # ONE BIG EFFECT demo: Sandstorm runs across all 32 chain LEDs as a
+      # single canvas instead of four independent copies of itself.
       - light.turn_on:
           brightness: 80%
-          id: body_light
+          id: led_chain
           effect: "Sandstorm"
       - light.turn_on:
           brightness: 80%
           id: mouth_light
           effect: "Sandstorm"
-      - light.turn_on:
-          brightness: 80%
-          id: eyes_light
-          effect: "Sandstorm"
-      - light.turn_on:
-          brightness: 80%
-          id: nose_light
-          effect: "Sandstorm"
-      - light.turn_on:
-          brightness: 80%
-          id: hat_light
-          effect: "Sandstorm"
-      - rtttl.play:
-          rtttl: Sandstorm:d=16,o=6,b=85:e,e,e,e,8e,e,e,a,a,a,a,g,g,g,d,e,e,e,e, 8e,e,a,e,e,e,e,8e,e,d,e,e,e,e,e,8e,e,e,a,a,a,a,g,g,g,d,e,e,e,e,8e,e, a,e,e,e,e,8e,e,d,e,e,e,e,e,8e,e,e,a,a,a,a,g,g,g,d,e,e,e,e,8e,e,a,e, e,e,e,8e,e,d,e
+      #- rtttl.play:
+          #rtttl: Sandstorm:d=16,o=6,b=85:e,e,e,e,8e,e,e,a,a,a,a,g,g,g,d,e,e,e,e, 8e,e,a,e,e,e,e,8e,e,d,e,e,e,e,e,8e,e,e,a,a,a,a,g,g,g,d,e,e,e,e,8e,e, a,e,e,e,e,8e,e,d,e,e,e,e,e,8e,e,e,a,a,a,a,g,g,g,d,e,e,e,e,8e,e,a,e, e,e,e,8e,e,d,e
       - delay: 30s
       - script.execute: all_lights_off
-      - script.execute: ShouldSleep
+      #- script.execute: ShouldSleep
 
   - id: testScript
     then:
-      - lambda: "id(runTest) = false;"
+      #- lambda: "id(runTest) = false;"
       - light.turn_on:
           id: body_light
           brightness: 80%
