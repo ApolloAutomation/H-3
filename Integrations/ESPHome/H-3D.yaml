@@ -12,58 +12,14 @@ esphome:
 
   min_version: 2023.11.1
   on_boot:
-    # H-3D sleeps automatically (standalone firmware): the run_duration timer
-    # in Core.yaml puts it to sleep 90s after wake, and songs end in
-    # ShouldSleep. Prevent Sleep is ALWAYS_OFF here, so no boot-time check is
-    # needed - a 3-10s hold of the USR/Boot button still blocks sleep for the
-    # current boot (bench access, handled in Core.yaml).
-    # Sleep duration is applied late in boot, after the number has restored.
+    # Prevent Sleep is ALWAYS_OFF here, so no boot-time check is needed.
+    # Deliberately NO set_sleep_duration: H-3D has no timer wake.
+
+    # Decoding lives in Core.yaml's wake_decoder; this block must stay
+    # byte-identical in H-3.yaml and H-3D.yaml.
     - priority: -100
       then:
-        - lambda: |-
-            float hours = id(deep_sleep_sleep_duration).state;
-            if (!isnan(hours) && hours > 0) {
-              id(deep_sleep_1).set_sleep_duration((uint32_t) (hours * 60 * 60 * 1000));
-            }
-
-    # Check button states for powered-off scenario
-    - priority: -100
-      then:
-      - lambda: |-
-          uint64_t wake = esp_sleep_get_ext1_wakeup_status();
-
-          // Only process deep sleep wake if we actually woke from deep sleep
-          if (wake != 0) {
-            uint32_t low = wake % 0xFFFFFFFF;
-            uint32_t high = (wake >> 32) % 0xFFFFFFFF;
-
-            ESP_LOGI("Apollo", "Deep sleep wake detected, wake status: 0x%llx", wake);
-
-            // Check which song button caused the wake-up
-            if ((low) & (1<<(4))) {
-              id(wakeup_button_pressed).publish_state("1");
-              id(btn_play_song_1).press();
-            }
-            else if ((low) & (1<<(5))) {
-              id(wakeup_button_pressed).publish_state("2");
-              id(btn_play_song_2).press();
-            }
-            else if ((low) & (1<<(7))) {
-              id(wakeup_button_pressed).publish_state("3");
-              id(btn_play_song_3).press();
-            }
-            else {
-              id(wakeup_button_pressed).publish_state("0");
-            }
-          }
-          else {
-            // If no deep sleep wake and no button was detected in powered-off scenario
-            // then set to "0" (no button press)
-            if (id(wakeup_button_pressed).state == "") {
-              ESP_LOGI("Apollo", "No wake source detected, setting to 0");
-              id(wakeup_button_pressed).publish_state("0");
-            }
-          }
+        - script.execute: wake_decoder
 
     - priority: -10
       then:
@@ -79,9 +35,30 @@ esphome:
     - light.turn_off: nose_light
     - light.turn_off: hat_light
 
-safe_mode:
+# 15s bounds a USB/cold power-on only - no timer wake exists here. Button
+# wakes keep the full 90s, which must stay above Rudolph's 30.5s.
+substitutions:
+  run_duration_default: "15s"
+  timer_wake_enabled: "false"
 
+# Skips the bootloader SHA-256 of the whole image on every wake - shortens the
+# wake and the felt hold. TRADE-OFF: image corruption is no longer caught, and
+# with safe_mode off and no OTA that means USB recovery. H-3 keeps validation.
+esp32:
+  framework:
+    sdkconfig_options:
+      CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP: y
+
+# Disabled: it can never recover (no wifi/OTA) and costs a flash write per boot.
+# NOTE: re-enabling it re-imposes a 60s floor on run_duration - boot_is_good_after
+# defaults to 1min, and anything shorter trips safe mode after 10 wakes.
+safe_mode:
+  disabled: true
+
+# NOTE: this removes the ONLY debug channel on H-3D - no api, no web_server,
+# no OTA. Debugging a field unit means reflashing with a logging build first.
 logger:
+  baud_rate: 0
 
 switch:
   - platform: template
