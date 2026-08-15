@@ -1,20 +1,15 @@
-name: CI
+name: Weekly Firmware Build
 
 on:
-  pull_request:
+  schedule:
+    - cron: '0 0 * * 1'
 
 permissions:
-  pull-requests: write
-  issues: write
   contents: read
 
 jobs:
-  label-check:
-    name: Label Check
-    uses: ApolloAutomation/Workflows/.github/workflows/label-check.yml@main
-
-  ci:
-    name: CI
+  build:
+    name: Weekly Build
     uses: ApolloAutomation/Workflows/.github/workflows/esphome-ci.yml@main
     with:
       yaml-files: |
