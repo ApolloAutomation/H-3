@@ -1,0 +1,109 @@
+esphome:
+  name: "apollo-h-3d"
+  friendly_name: Apollo H-3D
+  comment: Apollo H-3D
+  name_add_mac_suffix: true
+  platformio_options:
+    board_build.flash_mode: dio
+
+  project:
+    name: "ApolloAutomation.H-3D"
+    version: "${version}"
+
+  # Must match H-3.yaml.
+  min_version: 2025.11.0
+  on_boot:
+    # Prevent Sleep is ALWAYS_OFF here, so no boot-time check is needed.
+    # Deliberately NO set_sleep_duration: H-3D has no timer wake.
+
+    # Decoding lives in Core.yaml's wake_decoder; this block must stay
+    # byte-identical in H-3.yaml and H-3D.yaml.
+    - priority: -100
+      then:
+        - script.execute: wake_decoder
+
+    - priority: -10
+      then:
+        - if:
+            condition:
+              - lambda: "return id(runTest);"
+            then:
+              - script.execute: testScript
+  on_shutdown:
+    - light.turn_off: body_light
+    - light.turn_off: mouth_light
+    - light.turn_off: eyes_light
+    - light.turn_off: nose_light
+    - light.turn_off: hat_light
+
+# 15s bounds a USB/cold power-on only - no timer wake exists here. Button
+# wakes keep the full 90s, which must stay above Rudolph's 30.5s.
+substitutions:
+  run_duration_default: "15s"
+  timer_wake_enabled: "false"
+
+# Skips the bootloader SHA-256 of the whole image on every wake - shortens the
+# wake and the felt hold. TRADE-OFF: image corruption is no longer caught, and
+# with safe_mode off and no OTA that means USB recovery. H-3 keeps validation.
+esp32:
+  framework:
+    sdkconfig_options:
+      CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP: y
+
+# Disabled: it can never recover (no wifi/OTA) and costs a flash write per boot.
+# NOTE: re-enabling it re-imposes a 60s floor on run_duration - boot_is_good_after
+# defaults to 1min, and anything shorter trips safe mode after 10 wakes.
+safe_mode:
+  disabled: true
+
+# NOTE: this removes the ONLY debug channel on H-3D - no api, no web_server,
+# no OTA. Debugging a field unit means reflashing with a logging build first.
+logger:
+  baud_rate: 0
+
+switch:
+  - platform: template
+    name: "Prevent Sleep"
+    id: prevent_sleep
+    icon: mdi:sleep
+    restore_mode: ALWAYS_OFF
+    optimistic: true
+    entity_category: "config"
+
+script:
+  - id: statusCheck
+    then:
+      - light.turn_on:
+          id: body_light
+          brightness: 40%
+          red: 0%
+          green: 100%
+          blue: 0%
+      - delay: 5s
+      - light.turn_off: body_light
+  - id: ShouldSleep
+    then:
+      - if:
+          condition:
+            or:
+              - switch.is_on: prevent_sleep
+          then:
+            - lambda: |-
+                ESP_LOGW("Apollo", "Preventing Deep Sleep Due To OTA On Boot");
+                id(deep_sleep_1).prevent_deep_sleep();
+          else:
+            - deep_sleep.enter:
+                id: deep_sleep_1
+  # No ota_mode here - H-3D has no api/wifi. prevent_sleep is ALWAYS_OFF, so
+  # unlike H-3 this really does re-arm sleep.
+  - id: resumeSleep
+    then:
+      - if:
+          condition:
+            switch.is_off: prevent_sleep
+          then:
+            - lambda: |-
+                id(deep_sleep_1).allow_deep_sleep();
+
+packages:
+  core: !include Core.yaml

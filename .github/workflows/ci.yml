@@ -17,6 +17,6 @@ jobs:
     name: CI
     uses: ApolloAutomation/Workflows/.github/workflows/esphome-ci.yml@main
     with:
-      # TODO: Rename to this product's YAML files
       yaml-files: |
-        Integrations/ESPHome/AIR-1.yaml
+        Integrations/ESPHome/H-3.yaml
+        Integrations/ESPHome/H-3D.yaml
