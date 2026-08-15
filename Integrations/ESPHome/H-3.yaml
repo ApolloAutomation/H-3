@@ -10,21 +10,21 @@ esphome:
     name: "ApolloAutomation.H-3"
     version: "${version}"
 
-  min_version: 2023.11.1
+  # Hard floor is 2024.6.0 (list-form ota:, http_request update, standalone
+  # safe_mode:); tracks the rest of the fleet rather than the true minimum.
+  min_version: 2025.11.0
   on_boot:
     # H-3 is opt-in for deep sleep
     - priority: 800
       then:
         - lambda: |-
             id(deep_sleep_1).prevent_deep_sleep();
-            
+
+    # No set_sleep_duration here: Core.yaml's deep_sleep_sleep_duration
+    # on_value already converts at boot, and its ${timer_wake_enabled} guard
+    # is the one that matters.
     - priority: -100
       then:
-        - lambda: |-
-            float hours = id(deep_sleep_sleep_duration).state;
-            if (!isnan(hours) && hours > 0) {
-              id(deep_sleep_1).set_sleep_duration((uint32_t) (hours * 60 * 60 * 1000));
-            }
         - if:
             condition:
               or:
@@ -48,7 +48,7 @@ esphome:
             condition:
               - lambda: "return id(runTest);"
             then:
-              - lambda: "id(testScript).execute();"
+              - script.execute: testScript
   on_shutdown:
     - light.turn_off: body_light
     - light.turn_off: mouth_light
@@ -130,7 +130,6 @@ api:
             - lambda: |-
                 ESP_LOGW("Apollo", "Preventing Deep Sleep Due To OTA Or Switch");
                 id(deep_sleep_1).prevent_deep_sleep();
-      - component.update: wakeup_button_pressed
 switch:
   - platform: template
     name: "Prevent Sleep"
@@ -230,6 +229,17 @@ script:
           else:
             - deep_sleep.enter:
                 id: deep_sleep_1
+  # Same guards as prevent_sleep's on_turn_off. Normally a no-op on H-3.
+  - id: resumeSleep
+    then:
+      - if:
+          condition:
+            and:
+              - binary_sensor.is_off: ota_mode
+              - switch.is_off: prevent_sleep
+          then:
+            - lambda: |-
+                id(deep_sleep_1).allow_deep_sleep();
 
 
 packages:

@@ -10,7 +10,8 @@ esphome:
     name: "ApolloAutomation.H-3D"
     version: "${version}"
 
-  min_version: 2023.11.1
+  # Must match H-3.yaml.
+  min_version: 2025.11.0
   on_boot:
     # Prevent Sleep is ALWAYS_OFF here, so no boot-time check is needed.
     # Deliberately NO set_sleep_duration: H-3D has no timer wake.
@@ -27,7 +28,7 @@ esphome:
             condition:
               - lambda: "return id(runTest);"
             then:
-              - lambda: "id(testScript).execute();"
+              - script.execute: testScript
   on_shutdown:
     - light.turn_off: body_light
     - light.turn_off: mouth_light
@@ -93,6 +94,16 @@ script:
           else:
             - deep_sleep.enter:
                 id: deep_sleep_1
+  # No ota_mode here - H-3D has no api/wifi. prevent_sleep is ALWAYS_OFF, so
+  # unlike H-3 this really does re-arm sleep.
+  - id: resumeSleep
+    then:
+      - if:
+          condition:
+            switch.is_off: prevent_sleep
+          then:
+            - lambda: |-
+                id(deep_sleep_1).allow_deep_sleep();
 
 packages:
   core: !include Core.yaml

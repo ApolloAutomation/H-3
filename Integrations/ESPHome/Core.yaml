@@ -44,14 +44,15 @@ globals:
     restore_value: no
     type: uint32_t
     initial_value: '0'
+  # First boot after a flash or factory reset, not yet acknowledged.
   - id: runTest
     restore_value: yes
     type: bool
     initial_value: "true"
-  - id: testCycleCount
-    type: int
+  - id: swallow_button_action
+    type: bool
     restore_value: no
-    initial_value: "0"
+    initial_value: "false"
   # Set from is_playing() AFTER each rtttl.play, never before - a malformed
   # string never starts, so a pre-set flag would strand the lights on forever.
   - id: song_active
@@ -237,27 +238,37 @@ binary_sensor:
       then:
         - lambda: |-
             id(button_press_timestamp) = millis();
+        - script.execute: dismiss_first_boot
     on_release:
       then:
-        - lambda: |-
-            if (millis() - id(button_press_timestamp) >= 10000) {
-              // Remove Wifi
-              id(factory_reset_switch).turn_on();
-            }
-            else if (millis() - id(button_press_timestamp) >= 3000) {
-              //Turn Prevent Sleep On
-              id(prevent_sleep).turn_on();
-              //Prevent Sleep
-              id(deep_sleep_1).prevent_deep_sleep();
-            }
-            else {
-              // StatusCheck
-              id(statusCheck).execute();
-              delay(3000);
-              id(testCycleCount) = 0;
-              id(runTest) = true;
-              id(testScript).execute();
-            }
+        - if:
+            condition:
+              lambda: 'return (millis() - id(button_press_timestamp)) >= 10000;'
+            then:
+              # Remove Wifi
+              - switch.turn_on: factory_reset_switch
+            else:
+              - if:
+                  condition:
+                    lambda: 'return (millis() - id(button_press_timestamp)) >= 3000;'
+                  then:
+                    # Turn Prevent Sleep On. The explicit prevent call is for
+                    # H-3D, whose prevent_sleep switch has no on_turn_on hook.
+                    - switch.turn_on: prevent_sleep
+                    - lambda: 'id(deep_sleep_1).prevent_deep_sleep();'
+                  else:
+                    # Only this branch is swallowed - factory reset must always
+                    # work.
+                    - if:
+                        condition:
+                          lambda: 'return !id(swallow_button_action);'
+                        then:
+                          # script.wait, not delay(): a lambda delay blocks
+                          # Application::loop(), so the status colour never
+                          # rendered and lightTest stomped it mid-script.
+                          - script.execute: statusCheck
+                          - script.wait: statusCheck
+                          - script.execute: lightTest
 
   # H-3 Individual Song Buttons (3 buttons)
   - platform: gpio
@@ -272,6 +283,9 @@ binary_sensor:
     # Debounce - required by the multi-click patterns.
     filters:
       - delayed_on_off: 20ms
+    on_press:
+      then:
+        - script.execute: dismiss_first_boot
     # Same rule as button 3: the inter-click gap (0.4s) MUST stay shorter than
     # the single-click wait (0.5s), or a second press in the overlap fires both.
     on_multi_click:
@@ -282,13 +296,21 @@ binary_sensor:
         - ON for at most 1s
         - OFF for at least 0.2s
       then:
-        - script.execute: play_song_4
+        - if:
+            condition:
+              lambda: 'return !id(swallow_button_action);'
+            then:
+              - script.execute: play_song_4
     # Single click -> song 1
     - timing:
         - ON for at most 1s
         - OFF for at least 0.5s
       then:
-        - script.execute: play_song_1
+        - if:
+            condition:
+              lambda: 'return !id(swallow_button_action);'
+            then:
+              - script.execute: play_song_1
     # Hold -> play_song_4. Same gesture the deep-sleep wake path uses, so it is
     # learned once and works asleep or awake. A single open-ended timing takes
     # a fast path in MultiClickTriggerBase that fires mid-hold; the two patterns
@@ -299,7 +321,11 @@ binary_sensor:
         - ON for at least ${hold_gesture_length}
       invalid_cooldown: 0s
       then:
-        - script.execute: play_song_4
+        - if:
+            condition:
+              lambda: 'return !id(swallow_button_action);'
+            then:
+              - script.execute: play_song_4
 
   - platform: gpio
     id: back_button_2
@@ -312,9 +338,16 @@ binary_sensor:
     name: "Song Button 2"
     filters:
       - delayed_on_off: 20ms
+    on_press:
+      then:
+        - script.execute: dismiss_first_boot
     on_release:
       then:
-        - script.execute: play_song_2
+        - if:
+            condition:
+              lambda: 'return !id(swallow_button_action);'
+            then:
+              - script.execute: play_song_2
 
   - platform: gpio
     id: back_button_3
@@ -327,6 +360,9 @@ binary_sensor:
     name: "Song Button 3"
     filters:
       - delayed_on_off: 20ms
+    on_press:
+      then:
+        - script.execute: dismiss_first_boot
     # Independent triggers on one pin: the inter-click gap (0.4s) MUST stay
     # shorter than the single-click wait (0.5s) or a press in the overlap
     # fires both.
@@ -338,13 +374,21 @@ binary_sensor:
         - ON for at most 1s
         - OFF for at least 0.2s
       then:
-        - script.execute: play_song_5
+        - if:
+            condition:
+              lambda: 'return !id(swallow_button_action);'
+            then:
+              - script.execute: play_song_5
     # Single click -> song 3
     - timing:
         - ON for at most 1s
         - OFF for at least 0.5s
       then:
-        - script.execute: play_song_3
+        - if:
+            condition:
+              lambda: 'return !id(swallow_button_action);'
+            then:
+              - script.execute: play_song_3
     # Hold -> play_song_5. Same gesture the deep-sleep wake path uses, so it is
     # learned once and works asleep or awake. A single open-ended timing takes
     # a fast path in MultiClickTriggerBase that fires mid-hold; the two patterns
@@ -355,7 +399,11 @@ binary_sensor:
         - ON for at least ${hold_gesture_length}
       invalid_cooldown: 0s
       then:
-        - script.execute: play_song_5
+        - if:
+            condition:
+              lambda: 'return !id(swallow_button_action);'
+            then:
+              - script.execute: play_song_5
 
 sensor:
   - platform: internal_temperature
@@ -715,6 +763,38 @@ script:
       - light.turn_off: nose_light
       - light.turn_off: hat_light
 
+  # Acknowledges the first-boot indicator. Every button calls this on_press;
+  # it is a no-op once runTest is clear.
+  - id: dismiss_first_boot
+    then:
+      - if:
+          condition:
+            lambda: "return id(runTest);"
+          then:
+            - lambda: "id(runTest) = false;"
+            - script.execute: all_lights_off
+            - lambda: "id(swallow_button_action) = true;"
+            - script.execute: swallow_clear
+            - script.execute: sleep_grace_period
+
+  # Hands back the block testScript took, but NOT immediately: run_duration has
+  # already elapsed and latched next_enter_deep_sleep_, so releasing it here
+  # would sleep the unit on the next loop. Give the press a normal wake window.
+  - id: sleep_grace_period
+    then:
+      - delay: ${run_duration_gpio}
+      - script.execute: resumeSleep
+
+  # Eats the button action an acknowledging or waking press is about to
+  # produce. 2s covers the worst case: a 1s ON ceiling plus the 0.5s
+  # single-click wait, and the 1.2s hold. Time-bounded rather than consumed by
+  # the handler - a flag the handler clears leaks whenever the expected pattern
+  # never matches, and would then swallow the NEXT press.
+  - id: swallow_clear
+    then:
+      - delay: 2s
+      - lambda: "id(swallow_button_action) = false;"
+
   # Deep-sleep wake decoding. BOTH device files call this and do nothing else,
   # so their decoders cannot drift apart. Do not inline it back into either.
   #
@@ -817,6 +897,16 @@ script:
                         - button.press: btn_play_song_3
                 else:
                   - button.press: btn_play_song_3
+      # The waking press is still live and its normal handler has not fired
+      # yet, and no play_song_* script blocks, so mode: single gives no dedup -
+      # the second execute just restarts the song. Armed here, AFTER the
+      # gesture resolves, so the window runs from the release, not from boot.
+      - if:
+          condition:
+            lambda: 'return id(wake_button) != 0;'
+          then:
+            - lambda: "id(swallow_button_action) = true;"
+            - script.execute: swallow_clear
 
   - id: play_song_1
     then:
@@ -974,9 +1064,48 @@ script:
           rtttl: Sandstorm:d=16,o=6,b=85:e,e,e,e,8e,e,e,a,a,a,a,g,g,g,d,e,e,e,e, 8e,e,a,e,e,e,e,8e,e,d,e,e,e,e,e,8e,e,e,a,a,a,a,g,g,g,d,e,e,e,e,8e,e, a,e,e,e,e,8e,e,d,e,e,e,e,e,8e,e,e,a,a,a,a,g,g,g,d,e,e,e,e,8e,e,a,e, e,e,e,8e,e,d,e
       - lambda: "id(song_active) = id(rtttl_buzzer).is_playing();"
 
+  # First-boot indicator: every zone green at 30%, no timeout. Only
+  # dismiss_first_boot clears it, so an un-acknowledged unit shows it again on
+  # every boot.
   - id: testScript
     then:
-      - lambda: "id(runTest) = false;"
+      # H-3D would otherwise sleep out from under it after run_duration.
+      - lambda: "id(deep_sleep_1).prevent_deep_sleep();"
+      - light.turn_on:
+          id: body_light
+          brightness: 30%
+          red: 0%
+          green: 100%
+          blue: 0%
+      - light.turn_on:
+          id: mouth_light
+          brightness: 30%
+          red: 0%
+          green: 100%
+          blue: 0%
+      - light.turn_on:
+          id: eyes_light
+          brightness: 30%
+          red: 0%
+          green: 100%
+          blue: 0%
+      - light.turn_on:
+          id: nose_light
+          brightness: 30%
+          red: 0%
+          green: 100%
+          blue: 0%
+      - light.turn_on:
+          id: hat_light
+          brightness: 30%
+          red: 0%
+          green: 100%
+          blue: 0%
+
+  # Manual all-zone check from a short reset-button press. Timed, and never
+  # touches runTest - it cannot re-arm the first-boot indicator.
+  - id: lightTest
+    then:
       - light.turn_on:
           id: body_light
           brightness: 80%
