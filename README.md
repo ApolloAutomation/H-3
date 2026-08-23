@@ -1,6 +1,6 @@
 # Apollo H-3 Holiday Ornament
 
-<!-- Brandon: drop the H-3 product photo here -->
+![Apollo Automation H-3](H-3.jpg)
 
 **Key Features of the H-3:**
 
