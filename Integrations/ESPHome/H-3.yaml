@@ -1,3 +1,16 @@
+substitutions:
+  # Default update channel on first boot (no stored user choice yet, i.e. a
+  # fresh flash). The beta-channel build overrides this to "Beta" (see
+  # Integrations/ESPHome/beta-channel/) so firmware obtained from the beta
+  # channel keeps tracking it instead of offering a stable "downgrade".
+  firmware_channel_default: "Stable"
+  # Manifest URL bases. Stable = GitHub Pages (main branch builds).
+  # Beta = rolling "beta-fw" pre-release assets (beta branch builds).
+  stable_manifest_base: "https://apolloautomation.github.io/H-3"
+  beta_manifest_base: "https://github.com/ApolloAutomation/H-3/releases/download/beta-fw"
+  ota_stable_manifest: "${stable_manifest_base}/firmware/manifest.json"
+  ota_beta_manifest: "${beta_manifest_base}/manifest-standard.json"
+
 esphome:
   name: "apollo-h-3"
   friendly_name: Apollo H-3
@@ -14,6 +27,10 @@ esphome:
   # safe_mode:); tracks the rest of the fleet rather than the true minimum.
   min_version: 2025.11.0
   on_boot:
+    # Point the update entity at the selected channel manifest.
+    - priority: -100
+      then:
+        - script.execute: apply_ota_source
     # H-3 is opt-in for deep sleep
     - priority: 800
       then:
@@ -90,14 +107,22 @@ bluetooth_proxy:
 
 http_request:
   verify_ssl: true
+  # GitHub release-asset downloads answer with a redirect carrying a
+  # ~3.6 KB Content-Security-Policy header; each header line must fit
+  # this buffer or the request fails with "HTTP_CLIENT: Out of buffer".
+  buffer_size_rx: 5120
+  # The redirect target is a signed URL with a ~850-char query string; the
+  # follow-up request line must fit the TX buffer or esp_http_client_open
+  # fails with "Out of buffer" before sending anything.
+  buffer_size_tx: 2048
 
 safe_mode:
 
 update:
   - platform: http_request
-    id: firmware_update
+    id: update_http_request
     name: Firmware Update
-    source: https://apolloautomation.github.io/H-3/firmware/manifest.json
+    source: ${ota_stable_manifest}
 
 wifi:
   power_save_mode: HIGH
@@ -151,6 +176,38 @@ api:
             - lambda: |-
                 ESP_LOGW("Apollo", "Preventing Deep Sleep Due To OTA Or Switch");
                 id(deep_sleep_1).prevent_deep_sleep();
+select:
+  - platform: template
+    name: "Firmware Channel"
+    id: firmware_channel
+    icon: mdi:source-branch
+    entity_category: "config"
+    optimistic: true
+    restore_value: true
+    options:
+      - "Stable"
+      - "Beta"
+    initial_option: "${firmware_channel_default}"
+    on_value:
+      then:
+        - script.execute: apply_ota_source
+
+button:
+  - platform: template
+    name: "Firmware Update"
+    id: update_firmware
+    icon: mdi:cloud-download
+    entity_category: "config"
+    on_press:
+      - logger.log: "Applying firmware update for the selected channel"
+      - delay: 3s
+      - script.execute: apply_ota_source
+      - script.wait: apply_ota_source
+      # The manifest fetch runs in its own task; give it a fixed window to land
+      # (update.is_available stays false for same-version switches).
+      - delay: 5s
+      - lambda: id(update_http_request).perform(true);
+
 switch:
   - platform: template
     name: "Bluetooth Proxy"
@@ -214,6 +271,16 @@ sensor:
     entity_category: "diagnostic"
 
 script:
+  - id: apply_ota_source
+    # Sets the OTA manifest URL from the Firmware Channel select (Stable/Beta).
+    then:
+      - lambda: |-
+          const bool beta = id(firmware_channel).current_option() == "Beta";
+          std::string url = beta ? "${ota_beta_manifest}" : "${ota_stable_manifest}";
+          ESP_LOGI("firmware", "OTA manifest set to: %s", url.c_str());
+          id(update_http_request).set_source_url(url);
+      - component.update: update_http_request
+
   - id: statusCheck
     then:
       - if:
