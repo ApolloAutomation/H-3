@@ -1,5 +1,4 @@
 substitutions:
-
   version: "26.8.23.2"
 
   run_duration_default: "90s"
