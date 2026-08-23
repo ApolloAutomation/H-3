@@ -49,6 +49,18 @@ esphome:
               - lambda: "return id(runTest);"
             then:
               - script.execute: testScript
+    # Re-apply the Bluetooth Proxy switch after all components set up, so BLE
+    # scanning matches the switch state restored from flash.
+    - priority: -300
+      then:
+        - if:
+            condition:
+              switch.is_on: bluetooth_proxy_switch
+            then:
+              - esp32_ble_tracker.start_scan:
+                  continuous: true
+            else:
+              - esp32_ble_tracker.stop_scan:
   on_shutdown:
     - light.turn_off: body_light
     - light.turn_off: mouth_light
@@ -68,6 +80,13 @@ ota:
     id: ota_esphome
   - platform: http_request
     id: ota_managed
+
+esp32_ble_tracker:
+  id: ble_tracker
+  scan_parameters:
+    continuous: true
+
+bluetooth_proxy:
 
 http_request:
   verify_ssl: true
@@ -131,6 +150,19 @@ api:
                 ESP_LOGW("Apollo", "Preventing Deep Sleep Due To OTA Or Switch");
                 id(deep_sleep_1).prevent_deep_sleep();
 switch:
+  - platform: template
+    name: "Bluetooth Proxy"
+    id: bluetooth_proxy_switch
+    icon: mdi:bluetooth
+    entity_category: "config"
+    restore_mode: RESTORE_DEFAULT_OFF
+    optimistic: true
+    on_turn_on:
+      - esp32_ble_tracker.start_scan:
+          continuous: true
+    on_turn_off:
+      - esp32_ble_tracker.stop_scan:
+
   - platform: template
     name: "Prevent Sleep"
     id: prevent_sleep

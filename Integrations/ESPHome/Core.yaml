@@ -1,5 +1,5 @@
 substitutions:
-  version: "26.8.14.1"
+  version: "26.8.23.2"
   run_duration_default: "90s"
   run_duration_gpio: "90s"
   timer_wake_enabled: "true"
