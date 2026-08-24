@@ -59,8 +59,13 @@ jobs:
       - name: Download firmware artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          path: fw
-          pattern: firmware*
+          # Downloaded by name, not pattern: with a single matching artifact
+          # the action extracts flat into `path` instead of creating a
+          # per-artifact subdirectory. H-3 builds one beta image (H-3D has no
+          # OTA), so `pattern:` would land the files in fw/ and break the
+          # publish step below. `name:` pins the layout regardless of count.
+          name: firmware-standard
+          path: fw/firmware-standard
 
       - name: Ensure rolling 'beta-fw' pre-release exists
         env:
@@ -102,3 +107,14 @@ jobs:
               gh release upload beta-fw {} -R "${{ github.repository }}" --clobber \;
           done
           echo "Beta assets published."
+
+      - name: Point beta-fw tag at the built commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # gh release create tags default-branch HEAD, and uploads never move
+          # the tag, so without this the release's source commit drifts away
+          # from the assets actually published.
+          gh api -X PATCH "repos/${{ github.repository }}/git/refs/tags/beta-fw" \
+            -f sha="${{ github.sha }}" -F force=true
+          echo "beta-fw -> ${{ github.sha }}"
