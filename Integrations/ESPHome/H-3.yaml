@@ -95,12 +95,33 @@ ota:
 
 esp32_ble_tracker:
   id: ble_tracker
+  # continuous is FALSE on purpose. The Bluetooth Proxy switch owns scanning,
+  # and the on_boot priority -300 handler restores it. With continuous: true
+  # the tracker starts a scan inside its own setup(), i.e. before that handler
+  # runs, so a fresh unit scanned for a moment even with the switch off - which
+  # is also the window esp32_improv needs to advertise on.
   scan_parameters:
-    continuous: true
+    continuous: false
 
 bluetooth_proxy:
+  id: ble_proxy
+
+# Improv over BLE. Required for the Made for ESPHome badge on any Wi-Fi
+# project; improv_serial alone does not satisfy it. The component only
+# advertises while the device has no Wi-Fi credentials (or has been off the
+# network for wifi_timeout), and stops itself once wifi connects, so it costs
+# nothing on a provisioned unit. Measured cost of adding it: +432 B RAM and
+# +21 KB flash, because esp32_ble was already linked in for the proxy.
+esp32_improv:
+  id: ble_improv
+  # 'none' = no physical authorization step, matching ESPHome's own reference
+  # ESP32-C6 factory config. Swap in a binary_sensor id here if the ornament
+  # should require a button press before it will accept credentials.
+  authorizer: none
+  status_indicator: improv_status_led
 
 http_request:
+  id: http_request_client
   verify_ssl: true
   # GitHub release-asset downloads answer with a redirect carrying a
   # ~3.6 KB Content-Security-Policy header; each header line must fit
@@ -112,11 +133,15 @@ http_request:
   buffer_size_tx: 2048
 
 safe_mode:
+  id: safe_mode_component
 
 update:
   - platform: http_request
     id: update_http_request
     name: Firmware Update
+    # Defaults to the empty device class, which renders as a generic update in
+    # Home Assistant. This one really is firmware.
+    device_class: firmware
     source: ${ota_stable_manifest}
 
 wifi:
@@ -126,38 +151,78 @@ wifi:
     ssid: "Apollo H3 Hotspot"
 
 logger:
+  id: logger_component
 
 improv_serial:
+  id: serial_improv
 
 captive_portal:
+  id: captive_portal_component
 
 web_server:
+  id: web_server_component
   port: 80
   version: 3
 
+# Drives the hat zone for esp32_improv. status_indicator must be a
+# BinaryOutput, not a light, and it is the ONLY thing that sets
+# improv::CAPABILITY_IDENTIFY - without it the provisioning app cannot ask the
+# ornament to identify itself. Improv toggles this at most ~10 Hz and only on a
+# real change, so it never floods the LED chain.
+output:
+  - platform: template
+    type: binary
+    id: improv_status_led
+    write_action:
+      - if:
+          condition:
+            lambda: "return state;"
+          then:
+            - light.turn_on:
+                id: hat_light
+                brightness: 60%
+                red: 0%
+                green: 40%
+                blue: 100%
+          else:
+            - light.turn_off: hat_light
+
 api:
-  services:
-    - service: play_buzzer
+  id: api_server
+  # No key on purpose. A bare 'encryption:' compiles in Noise support without
+  # baking a secret into a public config (Made for ESPHome forbids secrets and
+  # passwords in the published YAML), and ESPHome keeps the plaintext helper
+  # alongside it precisely so an adopting dashboard can hand the device a key
+  # over plaintext on first adoption.
+  encryption:
+  # 'actions' is the current spelling; ESPHome still rename_key's the old
+  # 'services' onto it, and the exposed Home Assistant service names are
+  # unchanged either way.
+  actions:
+    - action: play_buzzer
       variables:
         song_str: string
       then:
         - rtttl.play:
             rtttl: !lambda 'return song_str;'
-    - service: play_song_1
+    - action: play_song_1
       then:
         - script.execute: play_song_1
-    - service: play_song_2
+    - action: play_song_2
       then:
         - script.execute: play_song_2
-    - service: play_song_3
+    - action: play_song_3
       then:
         - script.execute: play_song_3
-    - service: play_song_4
+    - action: play_song_4
       then:
         - script.execute: play_song_4
-    - service: play_song_5
+    - action: play_song_5
       then:
         - script.execute: play_song_5
+    - action: play_song_6
+      then:
+        - script.execute: play_song_6
   reboot_timeout: 0s
   on_client_connected:
     then:
@@ -188,8 +253,12 @@ select:
         - script.execute: apply_ota_source
 
 button:
+  # Renamed from "Firmware Update": the update: entity above already carries
+  # that name, so Home Assistant showed the device two different entities with
+  # one label. This one force-installs the selected channel even when the
+  # update entity reports nothing available.
   - platform: template
-    name: "Firmware Update"
+    name: "Reinstall Firmware"
     id: update_firmware
     icon: mdi:cloud-download
     entity_category: "config"
@@ -202,6 +271,18 @@ button:
       # (update.is_available stays false for same-version switches).
       - delay: 5s
       - lambda: id(update_http_request).perform(true);
+
+  # Recovery entities. Both are diagnostic and both are things a support agent
+  # will ask for before suggesting a reflash.
+  - platform: restart
+    name: "Restart"
+    id: restart_button
+    entity_category: "diagnostic"
+
+  - platform: safe_mode
+    name: "Restart (Safe Mode)"
+    id: safe_mode_button
+    entity_category: "diagnostic"
 
 switch:
   - platform: template
@@ -244,6 +325,10 @@ binary_sensor:
   - platform: homeassistant
     name: "OTA Mode"
     id: ota_mode
+    # Mirrors a Home Assistant helper back into HA, so it is never dashboard
+    # material. Kept as an entity rather than internal: true so existing
+    # automations that reference it do not break.
+    entity_category: "diagnostic"
     entity_id: input_boolean.apollo_ota_mode
     on_press:
       then:
@@ -264,6 +349,37 @@ sensor:
     id: wifi_signal_db
     update_interval: 60s
     entity_category: "diagnostic"
+
+# Support diagnostics. All disabled by default so they cost nothing on a
+# normal install, but are one toggle away when someone reports a problem.
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+      id: wifi_ip_address
+      entity_category: "diagnostic"
+      disabled_by_default: true
+    ssid:
+      name: "Connected SSID"
+      id: wifi_ssid
+      entity_category: "diagnostic"
+      disabled_by_default: true
+    bssid:
+      name: "Connected BSSID"
+      id: wifi_bssid
+      entity_category: "diagnostic"
+      disabled_by_default: true
+    mac_address:
+      name: "MAC Address"
+      id: wifi_mac_address
+      entity_category: "diagnostic"
+      disabled_by_default: true
+
+  - platform: version
+    name: "ESPHome Version"
+    id: esphome_version
+    entity_category: "diagnostic"
+    disabled_by_default: true
 
 script:
   - id: apply_ota_source

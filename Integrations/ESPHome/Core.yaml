@@ -1,5 +1,5 @@
 substitutions:
-  version: "26.8.23.1"
+  version: "26.8.25.1"
 
   run_duration_default: "90s"
   run_duration_gpio: "90s"
@@ -101,43 +101,62 @@ button:
     id: factory_reset_button
     name: "Factory Reset"
     entity_category: diagnostic
-    internal: true
+    # Was internal: true, i.e. a 10s hold on the reset button was the only way
+    # to clear a unit. Exposed but disabled_by_default so it cannot be hit by
+    # accident from a dashboard, while still being available to a user who is
+    # deliberately handing the ornament on.
+    disabled_by_default: true
   - platform: template
     id: btn_play_song_1
     name: "Play Song 1"
+    icon: mdi:music-note
     on_press:
       then:
         - script.execute: play_song_1
   - platform: template
     id: btn_play_song_2
     name: "Play Song 2"
+    icon: mdi:music-note
     on_press:
       then:
         - script.execute: play_song_2
   - platform: template
     id: btn_play_song_3
     name: "Play Song 3"
+    icon: mdi:music-note
     on_press:
       then:
         - script.execute: play_song_3
   - platform: template
     id: btn_play_song_4
     name: "Play Song 4"
+    icon: mdi:music-note
     on_press:
       then:
         - script.execute: play_song_4
   - platform: template
     id: btn_play_song_5
     name: "Play Song 5"
+    icon: mdi:music-note
     on_press:
       then:
         - script.execute: play_song_5
+  - platform: template
+    id: btn_play_song_6
+    name: "Play Song 6"
+    icon: mdi:music-note
+    on_press:
+      then:
+        - script.execute: play_song_6
 
 number:
   - platform: template
     name: "Sleep Duration"
     id: deep_sleep_sleep_duration
-    min_value: 0
+    # 1, not 0. The on_value lambda below refuses 0 (a 0us timer wake is an
+    # unrecoverable boot loop), so a settable 0 only produced an entity that
+    # read "0 h" while the device went on sleeping for the previous duration.
+    min_value: 1
     max_value: 800
     step: 1
     mode: box
@@ -146,7 +165,7 @@ number:
     restore_value: true
     initial_value: 24
     icon: "mdi:arrow-collapse-right"
-    entity_category: CONFIG
+    entity_category: "config"
     unit_of_measurement: "h"
     on_value:
       then:
@@ -166,6 +185,8 @@ number:
     initial_value: 50
     unit_of_measurement: "%"
     step: 1
+    icon: "mdi:volume-high"
+    entity_category: "config"
     optimistic: true
     restore_value: true
     on_value:
@@ -176,6 +197,7 @@ text_sensor:
     id: wakeup_button_pressed
     name: "Wake-up Button Pressed"
     icon: "mdi:gesture-tap-button"
+    entity_category: "diagnostic"
 
 text:
   - platform: template
@@ -195,7 +217,7 @@ text:
     restore_value: true
     mode: text
     optimistic: true
-    initial_value: "rudolph:d=4,o=5,b=125:8g.,16a,8p,16g.,e,c6,a,2g.,8g.,16a,8g.,16a,g,c6,1b,8f.,16g,8p,16f.,d,b,a,2g.,8g.,16a,8g.,16a,g,a,1e,8g.,16a,8p,16g.,e,c6,a,1g,8g.,16a,8g.,16a,g,c6,1b,8f.,16g,8p,16f.,d,b,a,1g,8g.,16a,8g.,16a,g,d6,2c6;"
+    initial_value: "rudolph:d=4,o=5,b=125:8g.,16a,8p,16g.,e,c6,a,2g.,8g.,16a,8g.,16a,g,c6,1b,8f.,16g,8p,16f.,d,b,a,2g.,8g.,16a,8g.,16a,g,a,1e,8g.,16a,8p,16g.,e,c6,a,1g,8g.,16a,8g.,16a,g,c6,1b,8f.,16g,8p,16f.,d,b,a,1g,8g.,16a,8g.,16a,g,d6,2c6"
   - platform: template
     name: "Song Text 3"
     id: song_3
@@ -204,7 +226,7 @@ text:
     restore_value: true
     mode: text
     optimistic: true
-    initial_value: "jingle:d=8,o=5,b=120:e6,e6,e6.,16p,e6,e6,e6.,16p,e6,g6,c6.,16d6,e6.,p,f6,f6,f6.,16f6,f6,e6,e6,16e6,16e6,e6,d6,d6,e6,d6.,16p,g6,p,e6,e6,e6.,16p,e6,e6,e6.,16p,e6,g6,c6.,16d6,2e6,f6,f6,f6.,16f6,f6,e6,e6,16e6,16e6,g6,g6,f6,d6,2c6;"
+    initial_value: "jingle:d=8,o=5,b=120:e6,e6,e6.,16p,e6,e6,e6.,16p,e6,g6,c6.,16d6,e6.,p,f6,f6,f6.,16f6,f6,e6,e6,16e6,16e6,e6,d6,d6,e6,d6.,16p,g6,p,e6,e6,e6.,16p,e6,e6,e6.,16p,e6,g6,c6.,16d6,2e6,f6,f6,f6.,16f6,f6,e6,e6,16e6,16e6,g6,g6,f6,d6,2c6"
   - platform: template
     name: "Song Text 4"
     id: song_4
@@ -224,6 +246,19 @@ text:
     optimistic: true
     # Hook looped 3x: 24.0s, 247 of the 254 chars the NVS preference holds.
     initial_value: "Barbie Girl:o=5,d=8,b=125,b=125:g#,e,g#,c#6,4a,4p,f#,d#,f#,b,4g#,f#,e,4p,e,c#,4f#,4c#,4p,f#,e,4g#,4f#,4p,g#,e,g#,c#6,4a,4p,f#,d#,f#,b,4g#,f#,e,4p,e,c#,4f#,4c#,4p,f#,e,4g#,4f#,4p,g#,e,g#,c#6,4a,4p,f#,d#,f#,b,4g#,f#,e,4p,e,c#,4f#,4c#,4p,f#,e,4g#,4f#"
+  - platform: template
+    name: "Song Text 6"
+    id: song_6
+    icon: mdi:music-note
+    entity_category: "config"
+    restore_value: true
+    mode: text
+    optimistic: true
+    # Frozen chorus: hook / answer / hook / closing line. 11.9s, 105 of the
+    # 254 chars the NVS preference holds. Song 1 is "Frosty the Snowman" - a
+    # different tune - so this one is named BuildASnowman to keep the two
+    # apart in the rtttl logs.
+    initial_value: "BuildASnowman:d=8,o=5,b=136:g,g,g,d,g,b,4a,2b,8p,g,g,d,g,b,2a,4p,g,g,g,d,g,b,4a,2b,8p,g,g,g,g,d,g,b,4a,1g"
 
 binary_sensor:
   - platform: gpio
@@ -281,6 +316,7 @@ binary_sensor:
         pulldown: true
       allow_other_uses: true
     name: "Song Button 1"
+    entity_category: "diagnostic"
     # Debounce - required by the multi-click patterns.
     filters:
       - delayed_on_off: 20ms
@@ -337,18 +373,54 @@ binary_sensor:
         pulldown: true
       allow_other_uses: true
     name: "Song Button 2"
+    entity_category: "diagnostic"
     filters:
       - delayed_on_off: 20ms
     on_press:
       then:
         - script.execute: dismiss_first_boot
-    on_release:
+    # Same rule as buttons 1 and 3: the inter-click gap (0.4s) MUST stay shorter
+    # than the single-click wait (0.5s), or a second press in the overlap fires
+    # both. Converted from a plain on_release when song 6 was added, so a single
+    # click now waits out that 0.5s before playing - matching the other two.
+    on_multi_click:
+    # Double click -> song 6
+    - timing:
+        - ON for at most 1s
+        - OFF for at most 0.4s
+        - ON for at most 1s
+        - OFF for at least 0.2s
+      then:
+        - if:
+            condition:
+              lambda: 'return !id(swallow_button_action);'
+            then:
+              - script.execute: play_song_6
+    # Single click -> song 2
+    - timing:
+        - ON for at most 1s
+        - OFF for at least 0.5s
       then:
         - if:
             condition:
               lambda: 'return !id(swallow_button_action);'
             then:
               - script.execute: play_song_2
+    # Hold -> play_song_6. Same gesture the deep-sleep wake path uses, so it is
+    # learned once and works asleep or awake. A single open-ended timing takes
+    # a fast path in MultiClickTriggerBase that fires mid-hold; the two patterns
+    # above cap ON at 1s and have already invalidated, so exactly one fires.
+    # invalid_cooldown: 0s is load-bearing - the default 1s would block matching
+    # after a short tap, making "tap, then hold" (the obvious retry) do nothing.
+    - timing:
+        - ON for at least ${hold_gesture_length}
+      invalid_cooldown: 0s
+      then:
+        - if:
+            condition:
+              lambda: 'return !id(swallow_button_action);'
+            then:
+              - script.execute: play_song_6
 
   - platform: gpio
     id: back_button_3
@@ -359,6 +431,7 @@ binary_sensor:
         pulldown: true
       allow_other_uses: true
     name: "Song Button 3"
+    entity_category: "diagnostic"
     filters:
       - delayed_on_off: 20ms
     on_press:
@@ -706,6 +779,28 @@ light:
                             (int)(105.0f * tint * breath),
                             (int)((255.0f - 75.0f * tint) * breath));
             }
+      - addressable_lambda:
+          name: "Snowfall"
+          update_interval: 60ms
+          lambda: |-
+            // Clock-driven like PinkParty, for the same reason: the nose is a
+            // single LED and the eyes are two, so anything keyed off
+            // i/it.size() freezes those segments on one flat colour.
+            const uint32_t now = millis();
+            // Pale ice blue that drifts brighter and dimmer over ~4s.
+            float drift = 0.5f + 0.5f * sinf((now % 4000u) / 4000.0f * 6.28318530718f);
+            // color_correct 40% x brightness 80% = ~0.32, so keep the base high
+            // or the blue reads as dark grey on the wire.
+            int base_r = (int)(70.0f + 40.0f * drift);
+            int base_g = (int)(120.0f + 50.0f * drift);
+
+            for (int i = 0; i < it.size(); i++) {
+              if (rand() % 100 < 7) {  // a flake catches the light
+                it[i] = Color(255, 255, 255);
+              } else {
+                it[i] = Color(base_r, base_g, 255);
+              }
+            }
 
   # Segment views into the chain. Effects run per segment - an
   # addressable_lambda sees only that segment's LEDs.
@@ -782,6 +877,9 @@ script:
   # already elapsed and latched next_enter_deep_sleep_, so releasing it here
   # would sleep the unit on the next loop. Give the press a normal wake window.
   - id: sleep_grace_period
+    # restart, not the default single: a second execute must push the window
+    # out, not be dropped on the floor.
+    mode: restart
     then:
       - delay: ${run_duration_gpio}
       - script.execute: resumeSleep
@@ -792,6 +890,10 @@ script:
   # the handler - a flag the handler clears leaks whenever the expected pattern
   # never matches, and would then swallow the NEXT press.
   - id: swallow_clear
+    # restart, not the default single. dismiss_first_boot and wake_decoder can
+    # both arm this on the same press; with mode single the second execute was
+    # discarded and the swallow window ended early.
+    mode: restart
     then:
       - delay: 2s
       - lambda: "id(swallow_button_action) = false;"
@@ -840,12 +942,31 @@ script:
               id(wakeup_button_pressed).publish_state("0");
             }
           }
-      # Button 2 has no alternate song, so it keeps the old zero-latency path.
       - if:
           condition:
             lambda: 'return id(wake_button) == 2;'
           then:
-            - button.press: btn_play_song_2
+            - wait_until:
+                condition:
+                  lambda: 'return id(back_button_2).has_state();'
+                timeout: 250ms
+            - if:
+                condition:
+                  binary_sensor.is_on: back_button_2
+                then:
+                  - wait_until:
+                      condition:
+                        binary_sensor.is_off: back_button_2
+                      timeout: ${wake_hold_confirm}
+                  - if:
+                      condition:
+                        binary_sensor.is_on: back_button_2
+                      then:
+                        - button.press: btn_play_song_6
+                      else:
+                        - button.press: btn_play_song_2
+                else:
+                  - button.press: btn_play_song_2
       - if:
           condition:
             lambda: 'return id(wake_button) == 1;'
@@ -934,6 +1055,16 @@ script:
       - rtttl.play:
           rtttl: !lambda 'return id(song_1).state;'
       - lambda: "id(song_active) = id(rtttl_buzzer).is_playing();"
+      # Rtttl::play() returns early on a malformed string without ever
+      # reaching RUNNING, so on_finished_playback never fires and the lights
+      # above would stay on forever. Song Text is user-editable; one typo
+      # should not strand the ornament lit.
+      - if:
+          condition:
+            lambda: 'return !id(song_active);'
+          then:
+            - logger.log: "Song did not start - check the RTTTL string"
+            - script.execute: all_lights_off
 
   - id: play_song_2
     then:
@@ -960,6 +1091,16 @@ script:
       - rtttl.play:
           rtttl: !lambda 'return id(song_2).state;'
       - lambda: "id(song_active) = id(rtttl_buzzer).is_playing();"
+      # Rtttl::play() returns early on a malformed string without ever
+      # reaching RUNNING, so on_finished_playback never fires and the lights
+      # above would stay on forever. Song Text is user-editable; one typo
+      # should not strand the ornament lit.
+      - if:
+          condition:
+            lambda: 'return !id(song_active);'
+          then:
+            - logger.log: "Song did not start - check the RTTTL string"
+            - script.execute: all_lights_off
 
   - id: play_song_3
     then:
@@ -986,6 +1127,16 @@ script:
       - rtttl.play:
           rtttl: !lambda 'return id(song_3).state;'
       - lambda: "id(song_active) = id(rtttl_buzzer).is_playing();"
+      # Rtttl::play() returns early on a malformed string without ever
+      # reaching RUNNING, so on_finished_playback never fires and the lights
+      # above would stay on forever. Song Text is user-editable; one typo
+      # should not strand the ornament lit.
+      - if:
+          condition:
+            lambda: 'return !id(song_active);'
+          then:
+            - logger.log: "Song did not start - check the RTTTL string"
+            - script.execute: all_lights_off
 
   - id: play_song_4
     then:
@@ -1012,6 +1163,16 @@ script:
       - rtttl.play:
           rtttl: !lambda 'return id(song_4).state;'
       - lambda: "id(song_active) = id(rtttl_buzzer).is_playing();"
+      # Rtttl::play() returns early on a malformed string without ever
+      # reaching RUNNING, so on_finished_playback never fires and the lights
+      # above would stay on forever. Song Text is user-editable; one typo
+      # should not strand the ornament lit.
+      - if:
+          condition:
+            lambda: 'return !id(song_active);'
+          then:
+            - logger.log: "Song did not start - check the RTTTL string"
+            - script.execute: all_lights_off
 
   - id: play_song_5
     then:
@@ -1038,6 +1199,52 @@ script:
       - rtttl.play:
           rtttl: !lambda 'return id(song_5).state;'
       - lambda: "id(song_active) = id(rtttl_buzzer).is_playing();"
+      # Rtttl::play() returns early on a malformed string without ever
+      # reaching RUNNING, so on_finished_playback never fires and the lights
+      # above would stay on forever. Song Text is user-editable; one typo
+      # should not strand the ornament lit.
+      - if:
+          condition:
+            lambda: 'return !id(song_active);'
+          then:
+            - logger.log: "Song did not start - check the RTTTL string"
+            - script.execute: all_lights_off
+
+  - id: play_song_6
+    then:
+      - light.turn_on:
+          brightness: 80%
+          id: body_light
+          effect: "Snowfall"
+      - light.turn_on:
+          brightness: 80%
+          id: mouth_light
+          effect: "Snowfall"
+      - light.turn_on:
+          brightness: 80%
+          id: eyes_light
+          effect: "Snowfall"
+      - light.turn_on:
+          brightness: 80%
+          id: nose_light
+          effect: "Snowfall"
+      - light.turn_on:
+          brightness: 80%
+          id: hat_light
+          effect: "Snowfall"
+      - rtttl.play:
+          rtttl: !lambda 'return id(song_6).state;'
+      - lambda: "id(song_active) = id(rtttl_buzzer).is_playing();"
+      # Rtttl::play() returns early on a malformed string without ever
+      # reaching RUNNING, so on_finished_playback never fires and the lights
+      # above would stay on forever. Song Text is user-editable; one typo
+      # should not strand the ornament lit.
+      - if:
+          condition:
+            lambda: 'return !id(song_active);'
+          then:
+            - logger.log: "Song did not start - check the RTTTL string"
+            - script.execute: all_lights_off
 
   - id: play_song_x
     then:
@@ -1064,6 +1271,16 @@ script:
       - rtttl.play:
           rtttl: Sandstorm:d=16,o=6,b=85:e,e,e,e,8e,e,e,a,a,a,a,g,g,g,d,e,e,e,e, 8e,e,a,e,e,e,e,8e,e,d,e,e,e,e,e,8e,e,e,a,a,a,a,g,g,g,d,e,e,e,e,8e,e, a,e,e,e,e,8e,e,d,e,e,e,e,e,8e,e,e,a,a,a,a,g,g,g,d,e,e,e,e,8e,e,a,e, e,e,e,8e,e,d,e
       - lambda: "id(song_active) = id(rtttl_buzzer).is_playing();"
+      # Rtttl::play() returns early on a malformed string without ever
+      # reaching RUNNING, so on_finished_playback never fires and the lights
+      # above would stay on forever. Song Text is user-editable; one typo
+      # should not strand the ornament lit.
+      - if:
+          condition:
+            lambda: 'return !id(song_active);'
+          then:
+            - logger.log: "Song did not start - check the RTTTL string"
+            - script.execute: all_lights_off
 
   # First-boot indicator: every zone green at 30%, no timeout. Only
   # dismiss_first_boot clears it, so an un-acknowledged unit shows it again on
