@@ -1,4 +1,6 @@
-# CHANGEME: Set these variable to your liking
+# Jekyll config for the GitHub Pages installer site (static/index.html).
+# index.html carries no front matter, so it is served verbatim and the theme
+# below only applies to any future Markdown pages added here.
 title: Apollo H-3 Installer
 description: Powered by ESPHome and ESP Web Tools
 theme: jekyll-theme-slate
