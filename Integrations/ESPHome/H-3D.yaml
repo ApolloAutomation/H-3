@@ -13,11 +13,9 @@ esphome:
   # Must match H-3.yaml.
   min_version: 2025.11.0
   on_boot:
-    # Prevent Sleep is ALWAYS_OFF here, so no boot-time check is needed.
-    # Deliberately NO set_sleep_duration: H-3D has no timer wake.
+    # Prevent Sleep is ALWAYS_OFF; no timer wake
 
-    # Decoding lives in Core.yaml's wake_decoder; this block must stay
-    # byte-identical in H-3.yaml and H-3D.yaml.
+    # Decoding lives in Core.yaml's wake_decoder
     - priority: -100
       then:
         - script.execute: wake_decoder
@@ -36,28 +34,22 @@ esphome:
     - light.turn_off: nose_light
     - light.turn_off: hat_light
 
-# 15s bounds a USB/cold power-on only - no timer wake exists here. Button
-# wakes keep the full 90s, which must stay above Rudolph's 30.5s.
+# 15s bounds cold power-on; button wakes keep 90s
 substitutions:
   run_duration_default: "15s"
   timer_wake_enabled: "false"
 
-# Skips the bootloader SHA-256 of the whole image on every wake - shortens the
-# wake and the felt hold. TRADE-OFF: image corruption is no longer caught, and
-# with safe_mode off and no OTA that means USB recovery. H-3 keeps validation.
+# Skips boot image validation; USB recovery only
 esp32:
   framework:
     sdkconfig_options:
       CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP: y
 
-# Disabled: it can never recover (no wifi/OTA) and costs a flash write per boot.
-# NOTE: re-enabling it re-imposes a 60s floor on run_duration - boot_is_good_after
-# defaults to 1min, and anything shorter trips safe mode after 10 wakes.
+# Disabled: cannot recover without wifi/OTA
 safe_mode:
   disabled: true
 
-# NOTE: this removes the ONLY debug channel on H-3D - no api, no web_server,
-# no OTA. Debugging a field unit means reflashing with a logging build first.
+# Removes the ONLY debug channel on H-3D
 logger:
   baud_rate: 0
 
@@ -94,8 +86,7 @@ script:
           else:
             - deep_sleep.enter:
                 id: deep_sleep_1
-  # No ota_mode here - H-3D has no api/wifi. prevent_sleep is ALWAYS_OFF, so
-  # unlike H-3 this really does re-arm sleep.
+  # No ota_mode; H-3D has no api/wifi
   - id: resumeSleep
     then:
       - if:
