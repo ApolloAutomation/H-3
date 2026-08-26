@@ -1,6 +1,5 @@
 substitutions:
-  # Manifest URL bases. Stable = GitHub Pages (main branch builds).
-  # Beta = rolling "beta-fw" pre-release assets (beta branch builds).
+  # Manifest bases: stable=Pages, beta=release assets
   stable_manifest_base: "https://apolloautomation.github.io/H-3"
   beta_manifest_base: "https://github.com/ApolloAutomation/H-3/releases/download/beta-fw"
   ota_stable_manifest: "${stable_manifest_base}/firmware/manifest.json"
@@ -18,11 +17,10 @@ esphome:
     name: "ApolloAutomation.H-3"
     version: "${version}"
 
-  # Hard floor is 2024.6.0 (list-form ota:, http_request update, standalone
-  # safe_mode:); tracks the rest of the fleet rather than the true minimum.
+  # Hard floor is 2024.6.0; tracks the fleet
   min_version: 2025.11.0
   on_boot:
-    # Point the update entity at the selected channel manifest.
+    # Point update entity at selected manifest
     - priority: -100
       then:
         - script.execute: apply_ota_source
@@ -32,9 +30,7 @@ esphome:
         - lambda: |-
             id(deep_sleep_1).prevent_deep_sleep();
 
-    # No set_sleep_duration here: Core.yaml's deep_sleep_sleep_duration
-    # on_value already converts at boot, and its ${timer_wake_enabled} guard
-    # is the one that matters.
+    # Core.yaml's on_value already converts at boot
     - priority: -100
       then:
         - if:
@@ -50,7 +46,7 @@ esphome:
               - lambda: |-
                   ESP_LOGI("Apollo", "Deep sleep opted in - enabling automatic sleep");
                   id(deep_sleep_1).allow_deep_sleep();
-    # Decoding lives in Core.yaml's wake_decoder; this block must stay
+    # Decoding lives in Core.yaml's wake_decoder
     - priority: -100
       then:
         - script.execute: wake_decoder
@@ -61,8 +57,7 @@ esphome:
               - lambda: "return id(runTest);"
             then:
               - script.execute: testScript
-    # Re-apply the Bluetooth Proxy switch after all components set up, so BLE
-    # scanning matches the switch state restored from flash.
+    # Re-apply Bluetooth Proxy switch after setup
     - priority: -300
       then:
         - if:
@@ -95,41 +90,26 @@ ota:
 
 esp32_ble_tracker:
   id: ble_tracker
-  # continuous is FALSE on purpose. The Bluetooth Proxy switch owns scanning,
-  # and the on_boot priority -300 handler restores it. With continuous: true
-  # the tracker starts a scan inside its own setup(), i.e. before that handler
-  # runs, so a fresh unit scanned for a moment even with the switch off - which
-  # is also the window esp32_improv needs to advertise on.
+  # continuous FALSE on purpose; the switch owns scanning
   scan_parameters:
     continuous: false
 
 bluetooth_proxy:
   id: ble_proxy
 
-# Improv over BLE. Required for the Made for ESPHome badge on any Wi-Fi
-# project; improv_serial alone does not satisfy it. The component only
-# advertises while the device has no Wi-Fi credentials (or has been off the
-# network for wifi_timeout), and stops itself once wifi connects, so it costs
-# nothing on a provisioned unit. Measured cost of adding it: +432 B RAM and
-# +21 KB flash, because esp32_ble was already linked in for the proxy.
+# Improv over BLE; required for the M4E badge
 esp32_improv:
   id: ble_improv
-  # 'none' = no physical authorization step, matching ESPHome's own reference
-  # ESP32-C6 factory config. Swap in a binary_sensor id here if the ornament
-  # should require a button press before it will accept credentials.
+  # 'none' = no physical authorization step
   authorizer: none
   status_indicator: improv_status_led
 
 http_request:
   id: http_request_client
   verify_ssl: true
-  # GitHub release-asset downloads answer with a redirect carrying a
-  # ~3.6 KB Content-Security-Policy header; each header line must fit
-  # this buffer or the request fails with "HTTP_CLIENT: Out of buffer".
+  # Fits GitHub's ~3.6KB CSP redirect header
   buffer_size_rx: 5120
-  # The redirect target is a signed URL with a ~850-char query string; the
-  # follow-up request line must fit the TX buffer or esp_http_client_open
-  # fails with "Out of buffer" before sending anything.
+  # Fits GitHub's long signed redirect URL
   buffer_size_tx: 2048
 
 safe_mode:
@@ -139,8 +119,7 @@ update:
   - platform: http_request
     id: update_http_request
     name: Firmware Update
-    # Defaults to the empty device class, which renders as a generic update in
-    # Home Assistant. This one really is firmware.
+    # This one really is firmware
     device_class: firmware
     source: ${ota_stable_manifest}
 
@@ -164,11 +143,7 @@ web_server:
   port: 80
   version: 3
 
-# Drives the hat zone for esp32_improv. status_indicator must be a
-# BinaryOutput, not a light, and it is the ONLY thing that sets
-# improv::CAPABILITY_IDENTIFY - without it the provisioning app cannot ask the
-# ornament to identify itself. Improv toggles this at most ~10 Hz and only on a
-# real change, so it never floods the LED chain.
+# Drives hat zone; must be a BinaryOutput
 output:
   - platform: template
     type: binary
@@ -189,15 +164,9 @@ output:
 
 api:
   id: api_server
-  # No key on purpose. A bare 'encryption:' compiles in Noise support without
-  # baking a secret into a public config (Made for ESPHome forbids secrets and
-  # passwords in the published YAML), and ESPHome keeps the plaintext helper
-  # alongside it precisely so an adopting dashboard can hand the device a key
-  # over plaintext on first adoption.
+  # No key on purpose; M4E forbids baked secrets
   encryption:
-  # 'actions' is the current spelling; ESPHome still rename_key's the old
-  # 'services' onto it, and the exposed Home Assistant service names are
-  # unchanged either way.
+  # 'actions' is the current spelling for 'services'
   actions:
     - action: play_buzzer
       variables:
@@ -253,10 +222,7 @@ select:
         - script.execute: apply_ota_source
 
 button:
-  # Renamed from "Firmware Update": the update: entity above already carries
-  # that name, so Home Assistant showed the device two different entities with
-  # one label. This one force-installs the selected channel even when the
-  # update entity reports nothing available.
+  # Renamed: the update: entity already uses that name
   - platform: template
     name: "Reinstall Firmware"
     id: update_firmware
@@ -267,13 +233,11 @@ button:
       - delay: 3s
       - script.execute: apply_ota_source
       - script.wait: apply_ota_source
-      # The manifest fetch runs in its own task; give it a fixed window to land
-      # (update.is_available stays false for same-version switches).
+      # Give async manifest fetch time to land
       - delay: 5s
       - lambda: id(update_http_request).perform(true);
 
-  # Recovery entities. Both are diagnostic and both are things a support agent
-  # will ask for before suggesting a reflash.
+  # Recovery entities; support asks for these first
   - platform: restart
     name: "Restart"
     id: restart_button
@@ -325,9 +289,7 @@ binary_sensor:
   - platform: homeassistant
     name: "OTA Mode"
     id: ota_mode
-    # Mirrors a Home Assistant helper back into HA, so it is never dashboard
-    # material. Kept as an entity rather than internal: true so existing
-    # automations that reference it do not break.
+    # Mirrors an HA helper; never dashboard material
     entity_category: "diagnostic"
     entity_id: input_boolean.apollo_ota_mode
     on_press:
@@ -350,8 +312,7 @@ sensor:
     update_interval: 60s
     entity_category: "diagnostic"
 
-# Support diagnostics. All disabled by default so they cost nothing on a
-# normal install, but are one toggle away when someone reports a problem.
+# Diagnostics, all disabled by default
 text_sensor:
   - platform: wifi_info
     ip_address:
@@ -383,7 +344,7 @@ text_sensor:
 
 script:
   - id: apply_ota_source
-    # Sets the OTA manifest URL from the Firmware Channel select (Stable/Beta).
+    # Set OTA manifest from the channel select
     then:
       - lambda: |-
           const bool beta = id(firmware_channel).current_option() == "Beta";
@@ -441,7 +402,7 @@ script:
           else:
             - deep_sleep.enter:
                 id: deep_sleep_1
-  # Same guards as prevent_sleep's on_turn_off. Normally a no-op on H-3.
+  # Same guards as prevent_sleep on_turn_off
   - id: resumeSleep
     then:
       - if:

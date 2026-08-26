@@ -4,9 +4,9 @@ substitutions:
   run_duration_default: "90s"
   run_duration_gpio: "90s"
   timer_wake_enabled: "true"
-  # Hold confirm after the button's first real state. Felt hold = boot + this.
+  # Hold confirm after first real state
   wake_hold_confirm: "400ms"
-  # Awake equivalent. MUST exceed the 1s ON ceiling of the patterns below.
+  # Awake equivalent; must exceed 1s ceiling
   hold_gesture_length: "1.2s"
 
 esp32:
@@ -25,8 +25,7 @@ output:
 rtttl:
   id: rtttl_buzzer
   output: buzzer
-  # song_active keeps the play_buzzer API action from blanking the lights or
-  # triggering a sleep.
+  # song_active guards play_buzzer from sleeping
   on_finished_playback:
     - if:
         condition:
@@ -45,7 +44,7 @@ globals:
     restore_value: no
     type: uint32_t
     initial_value: '0'
-  # First boot after a flash or factory reset, not yet acknowledged.
+  # First boot, not yet acknowledged
   - id: runTest
     restore_value: yes
     type: bool
@@ -54,13 +53,12 @@ globals:
     type: bool
     restore_value: no
     initial_value: "false"
-  # Set from is_playing() AFTER each rtttl.play, never before - a malformed
-  # string never starts, so a pre-set flag would strand the lights on forever.
+  # Set from is_playing() after play, never before
   - id: song_active
     type: bool
     restore_value: no
     initial_value: "false"
-  # Which button caused this wake (1/2/3, 0 = none).
+  # Which button woke us (0 = none)
   - id: wake_button
     type: uint8_t
     restore_value: no
@@ -68,8 +66,7 @@ globals:
 
 deep_sleep:
   id: deep_sleep_1
-  # sleep_duration deliberately NOT set here - H-3.yaml adds it (24h), H-3D
-  # omits it so esp_sleep_enable_timer_wakeup() is never called.
+  # sleep_duration set per variant, not here
   run_duration:
     default: ${run_duration_default}
     gpio_wakeup_reason: ${run_duration_gpio}
@@ -101,10 +98,7 @@ button:
     id: factory_reset_button
     name: "Factory Reset"
     entity_category: diagnostic
-    # Was internal: true, i.e. a 10s hold on the reset button was the only way
-    # to clear a unit. Exposed but disabled_by_default so it cannot be hit by
-    # accident from a dashboard, while still being available to a user who is
-    # deliberately handing the ornament on.
+    # Exposed but off by default; avoids accidents
     disabled_by_default: true
   - platform: template
     id: btn_play_song_1
@@ -153,9 +147,7 @@ number:
   - platform: template
     name: "Sleep Duration"
     id: deep_sleep_sleep_duration
-    # 1, not 0. The on_value lambda below refuses 0 (a 0us timer wake is an
-    # unrecoverable boot loop), so a settable 0 only produced an entity that
-    # read "0 h" while the device went on sleeping for the previous duration.
+    # 1, not 0: a 0us timer wake loops forever
     min_value: 1
     max_value: 800
     step: 1
@@ -244,7 +236,7 @@ text:
     restore_value: true
     mode: text
     optimistic: true
-    # Hook looped 3x: 24.0s, 247 of the 254 chars the NVS preference holds.
+    # Hook looped 3x; 247 of 254 NVS chars
     initial_value: "Barbie Girl:o=5,d=8,b=125,b=125:g#,e,g#,c#6,4a,4p,f#,d#,f#,b,4g#,f#,e,4p,e,c#,4f#,4c#,4p,f#,e,4g#,4f#,4p,g#,e,g#,c#6,4a,4p,f#,d#,f#,b,4g#,f#,e,4p,e,c#,4f#,4c#,4p,f#,e,4g#,4f#,4p,g#,e,g#,c#6,4a,4p,f#,d#,f#,b,4g#,f#,e,4p,e,c#,4f#,4c#,4p,f#,e,4g#,4f#"
   - platform: template
     name: "Song Text 6"
@@ -254,10 +246,7 @@ text:
     restore_value: true
     mode: text
     optimistic: true
-    # Frozen chorus: hook / answer / hook / closing line. 11.9s, 105 of the
-    # 254 chars the NVS preference holds. Song 1 is "Frosty the Snowman" - a
-    # different tune - so this one is named BuildASnowman to keep the two
-    # apart in the rtttl logs.
+    # Frozen chorus; song 1 is a different tune
     initial_value: "BuildASnowman:d=8,o=5,b=136:g,g,g,d,g,b,4a,2b,8p,g,g,d,g,b,2a,4p,g,g,g,d,g,b,4a,2b,8p,g,g,g,g,d,g,b,4a,1g"
 
 binary_sensor:
@@ -288,20 +277,16 @@ binary_sensor:
                   condition:
                     lambda: 'return (millis() - id(button_press_timestamp)) >= 3000;'
                   then:
-                    # Turn Prevent Sleep On. The explicit prevent call is for
-                    # H-3D, whose prevent_sleep switch has no on_turn_on hook.
+                    # Explicit prevent call is for H-3D
                     - switch.turn_on: prevent_sleep
                     - lambda: 'id(deep_sleep_1).prevent_deep_sleep();'
                   else:
-                    # Only this branch is swallowed - factory reset must always
-                    # work.
+                    # Only this branch swallowed; reset always works
                     - if:
                         condition:
                           lambda: 'return !id(swallow_button_action);'
                         then:
-                          # script.wait, not delay(): a lambda delay blocks
-                          # Application::loop(), so the status colour never
-                          # rendered and lightTest stomped it mid-script.
+                          # script.wait, not delay(): delay blocks loop()
                           - script.execute: statusCheck
                           - script.wait: statusCheck
                           - script.execute: lightTest
@@ -317,14 +302,13 @@ binary_sensor:
       allow_other_uses: true
     name: "Song Button 1"
     entity_category: "diagnostic"
-    # Debounce - required by the multi-click patterns.
+    # Debounce required by multi-click patterns
     filters:
       - delayed_on_off: 20ms
     on_press:
       then:
         - script.execute: dismiss_first_boot
-    # Same rule as button 3: the inter-click gap (0.4s) MUST stay shorter than
-    # the single-click wait (0.5s), or a second press in the overlap fires both.
+    # Inter-click gap must stay under single-click wait
     on_multi_click:
     # Double click -> song 4
     - timing:
@@ -348,12 +332,7 @@ binary_sensor:
               lambda: 'return !id(swallow_button_action);'
             then:
               - script.execute: play_song_1
-    # Hold -> play_song_4. Same gesture the deep-sleep wake path uses, so it is
-    # learned once and works asleep or awake. A single open-ended timing takes
-    # a fast path in MultiClickTriggerBase that fires mid-hold; the two patterns
-    # above cap ON at 1s and have already invalidated, so exactly one fires.
-    # invalid_cooldown: 0s is load-bearing - the default 1s would block matching
-    # after a short tap, making "tap, then hold" (the obvious retry) do nothing.
+    # Hold -> song 4; invalid_cooldown 0s is load-bearing
     - timing:
         - ON for at least ${hold_gesture_length}
       invalid_cooldown: 0s
@@ -379,10 +358,7 @@ binary_sensor:
     on_press:
       then:
         - script.execute: dismiss_first_boot
-    # Same rule as buttons 1 and 3: the inter-click gap (0.4s) MUST stay shorter
-    # than the single-click wait (0.5s), or a second press in the overlap fires
-    # both. Converted from a plain on_release when song 6 was added, so a single
-    # click now waits out that 0.5s before playing - matching the other two.
+    # Inter-click gap must stay under single-click wait
     on_multi_click:
     # Double click -> song 6
     - timing:
@@ -406,12 +382,7 @@ binary_sensor:
               lambda: 'return !id(swallow_button_action);'
             then:
               - script.execute: play_song_2
-    # Hold -> play_song_6. Same gesture the deep-sleep wake path uses, so it is
-    # learned once and works asleep or awake. A single open-ended timing takes
-    # a fast path in MultiClickTriggerBase that fires mid-hold; the two patterns
-    # above cap ON at 1s and have already invalidated, so exactly one fires.
-    # invalid_cooldown: 0s is load-bearing - the default 1s would block matching
-    # after a short tap, making "tap, then hold" (the obvious retry) do nothing.
+    # Hold -> song 6; invalid_cooldown 0s is load-bearing
     - timing:
         - ON for at least ${hold_gesture_length}
       invalid_cooldown: 0s
@@ -437,9 +408,7 @@ binary_sensor:
     on_press:
       then:
         - script.execute: dismiss_first_boot
-    # Independent triggers on one pin: the inter-click gap (0.4s) MUST stay
-    # shorter than the single-click wait (0.5s) or a press in the overlap
-    # fires both.
+    # Inter-click gap must stay under single-click wait
     on_multi_click:
     # Double click -> song 5 (Barbie Girl)
     - timing:
@@ -463,12 +432,7 @@ binary_sensor:
               lambda: 'return !id(swallow_button_action);'
             then:
               - script.execute: play_song_3
-    # Hold -> play_song_5. Same gesture the deep-sleep wake path uses, so it is
-    # learned once and works asleep or awake. A single open-ended timing takes
-    # a fast path in MultiClickTriggerBase that fires mid-hold; the two patterns
-    # above cap ON at 1s and have already invalidated, so exactly one fires.
-    # invalid_cooldown: 0s is load-bearing - the default 1s would block matching
-    # after a short tap, making "tap, then hold" (the obvious retry) do nothing.
+    # Hold -> song 5; invalid_cooldown 0s is load-bearing
     - timing:
         - ON for at least ${hold_gesture_length}
       invalid_cooldown: 0s
@@ -490,12 +454,7 @@ sensor:
     update_interval: 60s
 
 light:
-  # All 37 LEDs on ONE data line on GPIO3, wired:
-  #   body(24) -> mouth(5) -> nose(1) -> eyes(2) -> hat(5)
-  # Index map (partition from/to are INCLUSIVE):
-  #   body 0-23   mouth 24-28   nose 29   eyes 30-31   hat 32-36
-  # The chain is internal on purpose: turning the parent light on/off rewrites
-  # the whole buffer and stomps whatever the partitions are doing.
+  # 37 LEDs on one GPIO3 line; chain stays internal
   - platform: esp32_rmt_led_strip
     id: led_chain
     internal: true
@@ -505,7 +464,7 @@ light:
     num_leds: 37
     rgb_order: grb
     rmt_symbols: 48
-    # One data line = one correction for every segment (head parts were 30%).
+    # One data line, one correction per segment
     color_correct: [40%, 40%, 40%]
     effects: &led_effects
       - pulse:
@@ -802,8 +761,7 @@ light:
               }
             }
 
-  # Segment views into the chain. Effects run per segment - an
-  # addressable_lambda sees only that segment's LEDs.
+  # Segment views; effects run per segment
 
   # LEDs 0-23
   - platform: partition
@@ -859,8 +817,7 @@ script:
       - light.turn_off: nose_light
       - light.turn_off: hat_light
 
-  # Acknowledges the first-boot indicator. Every button calls this on_press;
-  # it is a no-op once runTest is clear.
+  # Acknowledges first-boot indicator; no-op once clear
   - id: dismiss_first_boot
     then:
       - if:
@@ -873,43 +830,23 @@ script:
             - script.execute: swallow_clear
             - script.execute: sleep_grace_period
 
-  # Hands back the block testScript took, but NOT immediately: run_duration has
-  # already elapsed and latched next_enter_deep_sleep_, so releasing it here
-  # would sleep the unit on the next loop. Give the press a normal wake window.
+  # Delays sleep release so the press gets a window
   - id: sleep_grace_period
-    # restart, not the default single: a second execute must push the window
-    # out, not be dropped on the floor.
+    # restart: a second execute must extend the window
     mode: restart
     then:
       - delay: ${run_duration_gpio}
       - script.execute: resumeSleep
 
-  # Eats the button action an acknowledging or waking press is about to
-  # produce. 2s covers the worst case: a 1s ON ceiling plus the 0.5s
-  # single-click wait, and the 1.2s hold. Time-bounded rather than consumed by
-  # the handler - a flag the handler clears leaks whenever the expected pattern
-  # never matches, and would then swallow the NEXT press.
+  # Eats the acknowledging press; 2s worst case
   - id: swallow_clear
-    # restart, not the default single. dismiss_first_boot and wake_decoder can
-    # both arm this on the same press; with mode single the second execute was
-    # discarded and the swallow window ended early.
+    # restart: two callers can arm on one press
     mode: restart
     then:
       - delay: 2s
       - lambda: "id(swallow_button_action) = false;"
 
-  # Deep-sleep wake decoding. BOTH device files call this and do nothing else,
-  # so their decoders cannot drift apart. Do not inline it back into either.
-  #
-  # Do NOT read the button level synchronously here: at on_boot -100 we are still
-  # in Application::setup() with no scheduler ticks, so the 20ms filter has not
-  # fired and state/has_state are false for every button. The wait_until below is
-  # what yields to the loop and lets the real level arrive.
-  #
-  # The gesture is a HOLD, not a double-click, and that is forced: boot from the
-  # ext1 wake outlasts a ~180-350ms double click, so both edges are gone before
-  # the ISR attaches. ext1 gives a latched mask with no count. A hold is a level,
-  # and a level survives the boot window.
+  # Shared wake decoding; hold gesture, not double-click
   - id: wake_decoder
     then:
       - lambda: |-
@@ -971,7 +908,7 @@ script:
           condition:
             lambda: 'return id(wake_button) == 1;'
           then:
-            # ~20-40ms. Timeout is a dead-man switch: falls through to song 1.
+            # Timeout is a dead-man switch to song 1
             - wait_until:
                 condition:
                   lambda: 'return id(back_button_1).has_state();'
@@ -980,7 +917,7 @@ script:
                 condition:
                   binary_sensor.is_on: back_button_1
                 then:
-                  # Releasing inside the window ends this wait early.
+                  # Releasing early ends this wait
                   - wait_until:
                       condition:
                         binary_sensor.is_off: back_button_1
@@ -1019,10 +956,7 @@ script:
                         - button.press: btn_play_song_3
                 else:
                   - button.press: btn_play_song_3
-      # The waking press is still live and its normal handler has not fired
-      # yet, and no play_song_* script blocks, so mode: single gives no dedup -
-      # the second execute just restarts the song. Armed here, AFTER the
-      # gesture resolves, so the window runs from the release, not from boot.
+      # Armed after the gesture resolves, not at boot
       - if:
           condition:
             lambda: 'return id(wake_button) != 0;'
@@ -1055,10 +989,7 @@ script:
       - rtttl.play:
           rtttl: !lambda 'return id(song_1).state;'
       - lambda: "id(song_active) = id(rtttl_buzzer).is_playing();"
-      # Rtttl::play() returns early on a malformed string without ever
-      # reaching RUNNING, so on_finished_playback never fires and the lights
-      # above would stay on forever. Song Text is user-editable; one typo
-      # should not strand the ornament lit.
+      # Malformed string never fires on_finished_playback
       - if:
           condition:
             lambda: 'return !id(song_active);'
@@ -1091,10 +1022,7 @@ script:
       - rtttl.play:
           rtttl: !lambda 'return id(song_2).state;'
       - lambda: "id(song_active) = id(rtttl_buzzer).is_playing();"
-      # Rtttl::play() returns early on a malformed string without ever
-      # reaching RUNNING, so on_finished_playback never fires and the lights
-      # above would stay on forever. Song Text is user-editable; one typo
-      # should not strand the ornament lit.
+      # Malformed string never fires on_finished_playback
       - if:
           condition:
             lambda: 'return !id(song_active);'
@@ -1127,10 +1055,7 @@ script:
       - rtttl.play:
           rtttl: !lambda 'return id(song_3).state;'
       - lambda: "id(song_active) = id(rtttl_buzzer).is_playing();"
-      # Rtttl::play() returns early on a malformed string without ever
-      # reaching RUNNING, so on_finished_playback never fires and the lights
-      # above would stay on forever. Song Text is user-editable; one typo
-      # should not strand the ornament lit.
+      # Malformed string never fires on_finished_playback
       - if:
           condition:
             lambda: 'return !id(song_active);'
@@ -1163,10 +1088,7 @@ script:
       - rtttl.play:
           rtttl: !lambda 'return id(song_4).state;'
       - lambda: "id(song_active) = id(rtttl_buzzer).is_playing();"
-      # Rtttl::play() returns early on a malformed string without ever
-      # reaching RUNNING, so on_finished_playback never fires and the lights
-      # above would stay on forever. Song Text is user-editable; one typo
-      # should not strand the ornament lit.
+      # Malformed string never fires on_finished_playback
       - if:
           condition:
             lambda: 'return !id(song_active);'
@@ -1199,10 +1121,7 @@ script:
       - rtttl.play:
           rtttl: !lambda 'return id(song_5).state;'
       - lambda: "id(song_active) = id(rtttl_buzzer).is_playing();"
-      # Rtttl::play() returns early on a malformed string without ever
-      # reaching RUNNING, so on_finished_playback never fires and the lights
-      # above would stay on forever. Song Text is user-editable; one typo
-      # should not strand the ornament lit.
+      # Malformed string never fires on_finished_playback
       - if:
           condition:
             lambda: 'return !id(song_active);'
@@ -1235,10 +1154,7 @@ script:
       - rtttl.play:
           rtttl: !lambda 'return id(song_6).state;'
       - lambda: "id(song_active) = id(rtttl_buzzer).is_playing();"
-      # Rtttl::play() returns early on a malformed string without ever
-      # reaching RUNNING, so on_finished_playback never fires and the lights
-      # above would stay on forever. Song Text is user-editable; one typo
-      # should not strand the ornament lit.
+      # Malformed string never fires on_finished_playback
       - if:
           condition:
             lambda: 'return !id(song_active);'
@@ -1271,10 +1187,7 @@ script:
       - rtttl.play:
           rtttl: Sandstorm:d=16,o=6,b=85:e,e,e,e,8e,e,e,a,a,a,a,g,g,g,d,e,e,e,e, 8e,e,a,e,e,e,e,8e,e,d,e,e,e,e,e,8e,e,e,a,a,a,a,g,g,g,d,e,e,e,e,8e,e, a,e,e,e,e,8e,e,d,e,e,e,e,e,8e,e,e,a,a,a,a,g,g,g,d,e,e,e,e,8e,e,a,e, e,e,e,8e,e,d,e
       - lambda: "id(song_active) = id(rtttl_buzzer).is_playing();"
-      # Rtttl::play() returns early on a malformed string without ever
-      # reaching RUNNING, so on_finished_playback never fires and the lights
-      # above would stay on forever. Song Text is user-editable; one typo
-      # should not strand the ornament lit.
+      # Malformed string never fires on_finished_playback
       - if:
           condition:
             lambda: 'return !id(song_active);'
@@ -1282,12 +1195,10 @@ script:
             - logger.log: "Song did not start - check the RTTTL string"
             - script.execute: all_lights_off
 
-  # First-boot indicator: every zone green at 30%, no timeout. Only
-  # dismiss_first_boot clears it, so an un-acknowledged unit shows it again on
-  # every boot.
+  # First-boot indicator; only dismiss_first_boot clears it
   - id: testScript
     then:
-      # H-3D would otherwise sleep out from under it after run_duration.
+      # H-3D would otherwise sleep mid-test
       - lambda: "id(deep_sleep_1).prevent_deep_sleep();"
       - light.turn_on:
           id: body_light
@@ -1320,8 +1231,7 @@ script:
           green: 100%
           blue: 0%
 
-  # Manual all-zone check from a short reset-button press. Timed, and never
-  # touches runTest - it cannot re-arm the first-boot indicator.
+  # Manual zone check; never touches runTest
   - id: lightTest
     then:
       - light.turn_on:
