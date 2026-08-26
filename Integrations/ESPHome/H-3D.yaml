@@ -28,6 +28,7 @@ esphome:
             then:
               - script.execute: testScript
   on_shutdown:
+    - light.turn_off: all_lights
     - light.turn_off: body_light
     - light.turn_off: mouth_light
     - light.turn_off: eyes_light
