@@ -1,5 +1,5 @@
 substitutions:
-  version: "26.8.26.1"
+  version: "26.8.26.2"
 
   run_duration_default: "90s"
   run_duration_gpio: "90s"
@@ -763,6 +763,15 @@ light:
 
   # Segment views; effects run per segment
 
+  # All 37 LEDs
+  - platform: partition
+    id: all_lights
+    name: "All Lights"
+    default_transition_length: 0s
+    segments:
+      - { id: led_chain, from: 0, to: 36 }
+    effects: *led_effects
+
   # LEDs 0-23
   - platform: partition
     id: body_light
@@ -811,6 +820,7 @@ light:
 script:
   - id: all_lights_off
     then:
+      - light.turn_off: all_lights
       - light.turn_off: body_light
       - light.turn_off: mouth_light
       - light.turn_off: eyes_light
@@ -968,6 +978,8 @@ script:
     then:
       # Must stop first because Rtttl::play() returns early while a song is running
       - rtttl.stop:
+      # Zone effects below would fight an All Lights effect writing the same buffer
+      - light.turn_off: all_lights
       - light.turn_on:
           brightness: 80%
           id: body_light
@@ -1003,6 +1015,8 @@ script:
     then:
       # Must stop first because Rtttl::play() returns early while a song is running
       - rtttl.stop:
+      # Zone effects below would fight an All Lights effect writing the same buffer
+      - light.turn_off: all_lights
       - light.turn_on:
           brightness: 80%
           id: body_light
@@ -1038,6 +1052,8 @@ script:
     then:
       # Must stop first because Rtttl::play() returns early while a song is running
       - rtttl.stop:
+      # Zone effects below would fight an All Lights effect writing the same buffer
+      - light.turn_off: all_lights
       - light.turn_on:
           brightness: 80%
           id: body_light
@@ -1073,6 +1089,8 @@ script:
     then:
       # Must stop first because Rtttl::play() returns early while a song is running
       - rtttl.stop:
+      # Zone effects below would fight an All Lights effect writing the same buffer
+      - light.turn_off: all_lights
       - light.turn_on:
           brightness: 80%
           id: body_light
@@ -1108,6 +1126,8 @@ script:
     then:
       # Must stop first because Rtttl::play() returns early while a song is running
       - rtttl.stop:
+      # Zone effects below would fight an All Lights effect writing the same buffer
+      - light.turn_off: all_lights
       - light.turn_on:
           brightness: 80%
           id: body_light
@@ -1143,6 +1163,8 @@ script:
     then:
       # Must stop first because Rtttl::play() returns early while a song is running
       - rtttl.stop:
+      # Zone effects below would fight an All Lights effect writing the same buffer
+      - light.turn_off: all_lights
       - light.turn_on:
           brightness: 80%
           id: body_light
@@ -1178,6 +1200,8 @@ script:
     then:
       # Must stop first because Rtttl::play() returns early while a song is running
       - rtttl.stop:
+      # Zone effects below would fight an All Lights effect writing the same buffer
+      - light.turn_off: all_lights
       - light.turn_on:
           brightness: 80%
           id: body_light

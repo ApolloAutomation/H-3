@@ -69,6 +69,7 @@ esphome:
             else:
               - esp32_ble_tracker.stop_scan:
   on_shutdown:
+    - light.turn_off: all_lights
     - light.turn_off: body_light
     - light.turn_off: mouth_light
     - light.turn_off: eyes_light
