@@ -249,10 +249,12 @@ button:
     id: restart_button
     entity_category: "diagnostic"
 
+  # Skips all component setup for 5 minutes, so it must stay off a dashboard
   - platform: safe_mode
     name: "Restart (Safe Mode)"
     id: safe_mode_button
     entity_category: "diagnostic"
+    disabled_by_default: true
 
 switch:
   - platform: template
