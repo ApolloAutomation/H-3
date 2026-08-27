@@ -20,6 +20,11 @@ esphome:
   # Hard floor is 2024.6.0; tracks the fleet
   min_version: 2025.11.0
   on_boot:
+    - priority: 500
+      then:
+        - text_sensor.template.publish:
+            id: apollo_firmware_version
+            state: "${version}"
     # Point update entity at selected manifest
     - priority: -100
       then:
@@ -313,7 +318,7 @@ sensor:
     update_interval: 60s
     entity_category: "diagnostic"
 
-# Diagnostics, all disabled by default
+# Wi-Fi diagnostics, disabled by default
 text_sensor:
   - platform: wifi_info
     ip_address:
@@ -340,8 +345,13 @@ text_sensor:
   - platform: version
     name: "ESPHome Version"
     id: esphome_version
+    hide_timestamp: true
     entity_category: "diagnostic"
-    disabled_by_default: true
+  - platform: template
+    name: "Apollo Firmware Version"
+    id: apollo_firmware_version
+    update_interval: never
+    entity_category: "diagnostic"
 
 script:
   - id: apply_ota_source
