@@ -73,10 +73,14 @@ deep_sleep:
   esp32_ext1_wakeup:
     mode: ANY_HIGH
     pins:
+      # GPIO4 and GPIO5 are C6 strapping pins; the buttons drive them through
+      # internal pulldowns, not external resistors, so the warning does not apply
       - number: GPIO4
         allow_other_uses: true
+        ignore_strapping_warning: true
       - number: GPIO5
         allow_other_uses: true
+        ignore_strapping_warning: true
       - number: GPIO7
         allow_other_uses: true
 
@@ -351,6 +355,7 @@ binary_sensor:
         input: true
         pulldown: true
       allow_other_uses: true
+      ignore_strapping_warning: true
     name: "Song Button 2"
     entity_category: "diagnostic"
     filters:
@@ -401,6 +406,7 @@ binary_sensor:
         input: true
         pulldown: true
       allow_other_uses: true
+      ignore_strapping_warning: true
     name: "Song Button 3"
     entity_category: "diagnostic"
     filters:
