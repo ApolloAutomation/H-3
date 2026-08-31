@@ -1,5 +1,5 @@
 substitutions:
-  version: "26.8.27.1"
+  version: "26.8.28.1"
 
   run_duration_default: "90s"
   run_duration_gpio: "90s"
@@ -454,18 +454,17 @@ sensor:
     update_interval: 60s
 
 light:
-  # 37 LEDs on one GPIO3 line; chain stays internal
+  # 37 LEDs on one GPIO3 line. The chain itself is the All Lights entity, so
+  # a whole-ornament effect renders across all 37 pixels.
   - platform: esp32_rmt_led_strip
-    id: led_chain
-    internal: true
+    id: all_lights
+    name: "All Lights"
     pin: GPIO3
     default_transition_length: 0s
     chipset: WS2812
     num_leds: 37
     channel_colors: GRB
     rmt_symbols: 48
-    # One data line, one correction per segment
-    color_correct: [40%, 40%, 40%]
     effects: &led_effects
       - pulse:
           name: "Slow Pulse"
@@ -722,8 +721,8 @@ light:
             // eyes a per-pixel offset reads as a fault, not a pattern.
             float tint_step = (it.size() >= 3) ? 0.35f : 0.0f;
 
-            // color_correct 40% x brightness 80% = ~0.32, so keep values high
-            // or the colour goes muddy on the wire.
+            // Songs run at brightness 80%, so keep values high or the
+            // colour goes muddy on the wire.
             int red_value = (int)(255.0f * breath);
 
             for (int i = 0; i < it.size(); i++) {
@@ -748,8 +747,8 @@ light:
             const uint32_t now = millis();
             // Pale ice blue that drifts brighter and dimmer over ~4s.
             float drift = 0.5f + 0.5f * sinf((now % 4000u) / 4000.0f * 6.28318530718f);
-            // color_correct 40% x brightness 80% = ~0.32, so keep the base high
-            // or the blue reads as dark grey on the wire.
+            // Songs run at brightness 80%, so keep the base high or the
+            // blue reads as dark grey on the wire.
             int base_r = (int)(70.0f + 40.0f * drift);
             int base_g = (int)(120.0f + 50.0f * drift);
 
@@ -769,7 +768,7 @@ light:
     name: "Body Light"
     default_transition_length: 0s
     segments:
-      - { id: led_chain, from: 0, to: 23 }
+      - { id: all_lights, from: 0, to: 23 }
     effects: *led_effects
 
   # LEDs 24-28
@@ -778,7 +777,7 @@ light:
     name: "Mouth Light"
     default_transition_length: 0s
     segments:
-      - { id: led_chain, from: 24, to: 28 }
+      - { id: all_lights, from: 24, to: 28 }
     effects: *led_effects
 
   # LED 29
@@ -787,7 +786,7 @@ light:
     name: "Nose Light"
     default_transition_length: 0s
     segments:
-      - { id: led_chain, from: 29, to: 29 }
+      - { id: all_lights, from: 29, to: 29 }
     effects: *led_effects
 
   # LEDs 30-31
@@ -796,7 +795,7 @@ light:
     name: "Eyes Light"
     default_transition_length: 0s
     segments:
-      - { id: led_chain, from: 30, to: 31 }
+      - { id: all_lights, from: 30, to: 31 }
     effects: *led_effects
 
   # LEDs 32-36
@@ -805,20 +804,7 @@ light:
     name: "Hat Light"
     default_transition_length: 0s
     segments:
-      - { id: led_chain, from: 32, to: 36 }
-    effects: *led_effects
-
-  # Master over the five zones, so a zone the user turned on is left alone
-  - platform: partition
-    id: all_lights
-    name: "All Lights"
-    default_transition_length: 0s
-    segments:
-      - single_light_id: body_light
-      - single_light_id: mouth_light
-      - single_light_id: nose_light
-      - single_light_id: eyes_light
-      - single_light_id: hat_light
+      - { id: all_lights, from: 32, to: 36 }
     effects: *led_effects
 
 script:
