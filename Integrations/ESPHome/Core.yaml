@@ -850,12 +850,12 @@ script:
       - delay: ${run_duration_gpio}
       - script.execute: resumeSleep
 
-  # Eats the acknowledging press; 2s worst case
+  # Eats the acknowledging press; a slow double-click resolves at 2.6s
   - id: swallow_clear
     # restart: two callers can arm on one press
     mode: restart
     then:
-      - delay: 2s
+      - delay: 3s
       - lambda: "id(swallow_button_action) = false;"
 
   # Shared wake decoding; hold gesture, not double-click
