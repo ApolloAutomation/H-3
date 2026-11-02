@@ -319,6 +319,9 @@ sensor:
     id: wifi_signal_db
     update_interval: 60s
     entity_category: "diagnostic"
+    # WWHA rate limit; ignores a few dBm of jitter
+    filters:
+      - delta: 5.0
 
 # Wi-Fi diagnostics, disabled by default
 text_sensor:

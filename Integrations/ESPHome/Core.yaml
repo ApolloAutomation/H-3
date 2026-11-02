@@ -453,11 +453,17 @@ sensor:
   - platform: internal_temperature
     name: "ESP Temperature"
     id: sys_esp_temperature
+    # WWHA rate limit; first sample after boot passes
+    filters:
+      - delta: 0.5
 
   - platform: uptime
     name: Uptime
     id: sys_uptime
     update_interval: 60s
+    # Must exceed the 60s step; reports about every 5 min
+    filters:
+      - delta: 300
 
 light:
   # 37 LEDs on one GPIO3 line. The chain itself is the All Lights entity, so
