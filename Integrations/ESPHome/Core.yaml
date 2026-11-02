@@ -841,7 +841,10 @@ script:
             - lambda: "id(runTest) = false;"
             - script.execute: all_lights_off
             - lambda: "id(swallow_button_action) = true;"
-            - script.execute: swallow_clear
+            # 3s: a slow double-click resolves at 2.6s; once per install
+            - script.execute:
+                id: swallow_clear
+                window_ms: 3000
             - script.execute: sleep_grace_period
 
   # Delays sleep release so the press gets a window
@@ -852,12 +855,14 @@ script:
       - delay: ${run_duration_gpio}
       - script.execute: resumeSleep
 
-  # Eats the acknowledging press; a slow double-click resolves at 2.6s
+  # Drops button actions until window_ms after the latest arm
   - id: swallow_clear
-    # restart: two callers can arm on one press
+    # restart: the later arm wins, with its own window
     mode: restart
+    parameters:
+      window_ms: int
     then:
-      - delay: 3s
+      - delay: !lambda 'return window_ms;'
       - lambda: "id(swallow_button_action) = false;"
 
   # Shared wake decoding; hold gesture, not double-click
@@ -970,13 +975,16 @@ script:
                         - button.press: btn_play_song_3
                 else:
                   - button.press: btn_play_song_3
-      # Armed after the gesture resolves, not at boot
+      # Armed after the gesture resolves; never cuts a first-boot arm short
       - if:
           condition:
-            lambda: 'return id(wake_button) != 0;'
+            lambda: 'return id(wake_button) != 0 && !id(swallow_button_action);'
           then:
             - lambda: "id(swallow_button_action) = true;"
-            - script.execute: swallow_clear
+            # 2s: no double-click on wake, and every wake pays it
+            - script.execute:
+                id: swallow_clear
+                window_ms: 2000
 
   - id: play_song_1
     then:
