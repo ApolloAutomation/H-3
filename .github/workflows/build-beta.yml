@@ -10,6 +10,8 @@ on:
     branches: [beta]
     paths:
       - 'Integrations/ESPHome/**'
+      # A push that only fixes this workflow must rebuild too
+      - '.github/workflows/build-beta.yml'
   workflow_dispatch:
 
 # Least privilege: read-only by default; only publish-beta is elevated to write.
@@ -19,6 +21,8 @@ permissions:
 jobs:
   version:
     name: Read version
+    # Beta assets only from beta; build and publish-beta skip with this job
+    if: github.ref == 'refs/heads/beta'
     runs-on: ubuntu-latest
     outputs:
       v: ${{ steps.read.outputs.v }}
