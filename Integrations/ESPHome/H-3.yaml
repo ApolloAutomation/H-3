@@ -134,6 +134,8 @@ wifi:
   id: wifi_component
   power_save_mode: HIGH
   output_power: 10
+  # Keeps today's no-reboot on lost Wi-Fi; 2026.11 drops the AP exemption
+  reboot_timeout: 0s
   ap:
     ssid: "Apollo H3 Hotspot"
 
