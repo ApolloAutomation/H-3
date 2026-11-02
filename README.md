@@ -39,6 +39,7 @@ The H-3 has two ESPHome firmwares. Install either one at any time from the brows
 
 - **Updates:** the ornament checks for new firmware every 6 hours and offers it through its **Firmware Update** entity. **Firmware Channel** switches between Stable and Beta.
 - **Battery:** the Smart firmware stays awake by default. Turn off **Prevent Sleep** to let it sleep between button presses; press a song button to wake it. To keep a sleeping ornament awake for an update, create a toggle helper with the entity ID `input_boolean.apollo_ota_mode` and turn it on.
+- **New Wi-Fi network:** with Prevent Sleep off, the ornament goes back to sleep before its hotspot starts. Wake it with a song button, then hold the boot button for 3 to 10 seconds and let go before the song ends. That turns Prevent Sleep on, and about 90 seconds after the wake the `Apollo H3 Hotspot` network and Improv via BLE become available. Turn Prevent Sleep off again once it is back online.
 - **Remove it:** delete the device under **Settings > Devices & services > ESPHome** while the ornament is awake. Factory reset it before you add it to a different Home Assistant.
 
 ### Boot button
