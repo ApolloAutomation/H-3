@@ -972,6 +972,8 @@ script:
 
   - id: play_song_1
     then:
+      # Clear first: stop fires on_finished_playback, which would sleep
+      - lambda: "id(song_active) = false;"
       # Must stop first because Rtttl::play() returns early while a song is running
       - rtttl.stop:
       # Zone effects below would fight an All Lights effect writing the same buffer
@@ -1009,6 +1011,8 @@ script:
 
   - id: play_song_2
     then:
+      # Clear first: stop fires on_finished_playback, which would sleep
+      - lambda: "id(song_active) = false;"
       # Must stop first because Rtttl::play() returns early while a song is running
       - rtttl.stop:
       # Zone effects below would fight an All Lights effect writing the same buffer
@@ -1046,6 +1050,8 @@ script:
 
   - id: play_song_3
     then:
+      # Clear first: stop fires on_finished_playback, which would sleep
+      - lambda: "id(song_active) = false;"
       # Must stop first because Rtttl::play() returns early while a song is running
       - rtttl.stop:
       # Zone effects below would fight an All Lights effect writing the same buffer
@@ -1083,6 +1089,8 @@ script:
 
   - id: play_song_4
     then:
+      # Clear first: stop fires on_finished_playback, which would sleep
+      - lambda: "id(song_active) = false;"
       # Must stop first because Rtttl::play() returns early while a song is running
       - rtttl.stop:
       # Zone effects below would fight an All Lights effect writing the same buffer
@@ -1120,6 +1128,8 @@ script:
 
   - id: play_song_5
     then:
+      # Clear first: stop fires on_finished_playback, which would sleep
+      - lambda: "id(song_active) = false;"
       # Must stop first because Rtttl::play() returns early while a song is running
       - rtttl.stop:
       # Zone effects below would fight an All Lights effect writing the same buffer
@@ -1157,6 +1167,8 @@ script:
 
   - id: play_song_6
     then:
+      # Clear first: stop fires on_finished_playback, which would sleep
+      - lambda: "id(song_active) = false;"
       # Must stop first because Rtttl::play() returns early while a song is running
       - rtttl.stop:
       # Zone effects below would fight an All Lights effect writing the same buffer
@@ -1194,6 +1206,8 @@ script:
 
   - id: play_song_x
     then:
+      # Clear first: stop fires on_finished_playback, which would sleep
+      - lambda: "id(song_active) = false;"
       # Must stop first because Rtttl::play() returns early while a song is running
       - rtttl.stop:
       # Zone effects below would fight an All Lights effect writing the same buffer
