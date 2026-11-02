@@ -162,6 +162,7 @@ number:
     initial_value: 24
     icon: "mdi:arrow-collapse-right"
     entity_category: "config"
+    device_class: duration
     unit_of_measurement: "h"
     on_value:
       then:
@@ -597,7 +598,8 @@ light:
           name: "Sandstorm"
           update_interval: 20ms  # Very fast updates for rave effect
           lambda: |-
-            const float PI = 3.14159265359;
+            // Not PI: Arduino.h #defines PI
+            const float kPi = 3.14159265359;
             static int phase = 0;
             static int strobe_counter = 0;
             static int color_shift = 0;
@@ -639,7 +641,7 @@ light:
                 int wave_offset = (int)(position_factor * 180);
 
                 // Pulsing intensity based on sine wave
-                float intensity = 0.5 + 0.5 * sin((phase + wave_offset) * PI / 180);
+                float intensity = 0.5 + 0.5 * sin((phase + wave_offset) * kPi / 180);
 
                 // Select color based on position and time
                 int color_index = (color_shift + (i % 3)) % 6;

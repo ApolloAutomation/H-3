@@ -81,6 +81,7 @@ esphome:
     - light.turn_off: nose_light
     - light.turn_off: hat_light
 
+# Compiled into shipped units; keep this path on main
 dashboard_import:
   package_import_url: github://ApolloAutomation/H-3/Integrations/ESPHome/H-3.yaml
   import_full_config: false
@@ -130,6 +131,7 @@ update:
     source: ${ota_stable_manifest}
 
 wifi:
+  id: wifi_component
   power_save_mode: HIGH
   output_power: 10
   ap:
