@@ -17,8 +17,8 @@ esphome:
     name: "ApolloAutomation.H-3"
     version: "${version}"
 
-  # Hard floor is 2024.6.0; tracks the fleet
-  min_version: 2026.8.0
+  # improv_ble (renamed from esp32_improv) needs 2026.10
+  min_version: 2026.10.0
   on_boot:
     - priority: 500
       then:
@@ -104,7 +104,7 @@ bluetooth_proxy:
   id: ble_proxy
 
 # Improv over BLE; required for the M4E badge
-esp32_improv:
+improv_ble:
   id: ble_improv
   # 'none' = no physical authorization step
   authorizer: none
