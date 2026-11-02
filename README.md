@@ -37,16 +37,18 @@ The H-3 has two ESPHome firmwares. Install either one at any time from the brows
 
 ### Use it with Home Assistant
 
-- **Updates:** the ornament checks for new firmware every 6 hours and offers it through its **Firmware Update** entity. **Firmware Channel** switches between Stable and Beta.
-- **Battery:** the Smart firmware stays awake by default. Turn off **Prevent Sleep** to let it sleep between button presses; press a song button to wake it. To keep a sleeping ornament awake for an update, create a toggle helper with the entity ID `input_boolean.apollo_ota_mode` and turn it on.
+- **Updates:** the ornament checks for new firmware soon after it starts and every 6 hours after that, and offers it through its **Firmware Update** entity. With **Prevent Sleep** off, it only checks for and installs updates while it is awake, so keep it awake for an update (see **Battery**). **Firmware Channel** switches between Stable and Beta.
+- **Battery:** the Smart firmware stays awake by default. Turn off **Prevent Sleep** to let it sleep between button presses; press a song button to wake it. To keep it awake for an update, create a toggle helper with the entity ID `input_boolean.apollo_ota_mode`, turn it on, then press a song button. The ornament sees the helper once it wakes and connects to Home Assistant. Turn the helper off after the update so it can sleep again.
 - **New Wi-Fi network:** with Prevent Sleep off, the ornament goes back to sleep before its hotspot starts. Wake it with a song button, then hold the boot button for 3 to 10 seconds and let go before the song ends. That turns Prevent Sleep on, and about 90 seconds after the wake the `Apollo H3 Hotspot` network and Improv via BLE become available. Turn Prevent Sleep off again once it is back online.
 - **Remove it:** delete the device under **Settings > Devices & services > ESPHome** while the ornament is awake. Factory reset it before you add it to a different Home Assistant.
 
 ### Boot button
 
+The boot button does not wake the ornament. If it is asleep, wake it with a song button, then use the boot button right away and let go before the song ends.
+
 - **Short press:** the body LEDs show the connection status. Blue means connected to Home Assistant, green means Wi-Fi only and yellow means no Wi-Fi. On the Basic firmware they always show green.
 - **Hold for 3 to 10 seconds:** turns on **Prevent Sleep**, so the ornament stays awake.
-- **Hold for 10 seconds or more, then release:** factory reset. This erases the Wi-Fi details and every saved setting (custom songs, volume, sleep and channel settings), then restarts. If the ornament is asleep, press a song button first to wake it. The **Factory Reset** button in Home Assistant does the same; it is in the Diagnostic section and disabled by default.
+- **Hold for 10 seconds or more, then release:** factory reset. This erases the Wi-Fi details and every saved setting (custom songs, volume, sleep and channel settings), then restarts. The **Factory Reset** button in Home Assistant does the same; it is in the Diagnostic section and disabled by default.
 
 ### ESPHome configuration
 
