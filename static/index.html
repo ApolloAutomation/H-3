@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <title>Apollo H-3 Installer</title>
@@ -65,6 +65,9 @@
         list-style: none;
         line-height: 2em;
       }
+      .steps li {
+        margin-bottom: 0.5em;
+      }
       @media (prefers-color-scheme: dark) {
         body {
           background-color: #333;
@@ -82,21 +85,70 @@
     <div class="content">
       <h1>Apollo H-3 Installer</h1>
 
+      <p>
+        Install or reinstall the H-3's ESPHome firmware from Chrome or Edge on
+        a computer.
+      </p>
+      <ul>
+        <li>
+          <b>Smart (Wi-Fi)</b> connects to Home Assistant: change songs and LED
+          effects, run automations, use the Bluetooth proxy and get firmware
+          updates.
+        </li>
+        <li>
+          <b>Basic (No Wi-Fi)</b> is the firmware the ornament ships with: the
+          buttons play the built-in songs, with no Wi-Fi or Bluetooth.
+        </li>
+      </ul>
+
+      <h2>Before you install</h2>
+      <ol class="steps">
+        <li>Take the batteries out of the ornament.</li>
+        <li>
+          Hold the boot button on the back, plug a USB-C data cable into the
+          ornament and your computer, then let go of the button.
+          (<a href="https://wiki.apolloautomation.com/products/h3/troubleshooting/boot-mode/">Boot mode guide</a>)
+        </li>
+      </ol>
+
       <div class="button-row" style="display: flex; justify-content: center; gap: 20px; align-items: center;">
         <div>
-          <p>H-3 Smart Wifi Firmware</p>
+          <p>H-3 Smart (Wi-Fi) Firmware</p>
           <esp-web-install-button manifest="./firmware/manifest.json"></esp-web-install-button>
         </div>
         <div>
-          <p>H-3 No Wifi Firmware</p>
+          <p>H-3 Basic (No Wi-Fi) Firmware</p>
           <esp-web-install-button manifest="./firmware-d/manifest.json"></esp-web-install-button>
         </div>
       </div>
 
+      <h2>After you install</h2>
+      <ol class="steps">
+        <li>
+          Unplug the USB cable and plug it back in so the ornament restarts
+          normally.
+        </li>
+        <li>
+          Smart firmware only: connect the ornament to Wi-Fi. Click
+          <b>Connect</b> above again and enter your Wi-Fi details, join the
+          <code>Apollo H3 Hotspot</code> network from a phone, or set it up
+          from Home Assistant over Bluetooth
+          (<a href="https://www.home-assistant.io/integrations/improv_ble/">Improv via BLE</a>).
+          Home Assistant then discovers the ornament.
+        </li>
+      </ol>
+      <p>
+        Factory reset: hold the boot button for 10 seconds or more, then
+        release it. If the ornament is asleep, wake it with a song button
+        first, start the hold right away and let go before the song ends.
+        This erases the Wi-Fi details and every saved setting.
+      </p>
+
       <div class="footer">
         <a href="https://github.com/ApolloAutomation/H-3"
           >Apollo H-3</a
-        > &mdash;
+        > (<a href="https://github.com/ApolloAutomation/H-3/tree/main/Integrations/ESPHome">ESPHome configuration</a>,
+        <a href="https://wiki.apolloautomation.com/products/h3/introduction/">wiki</a>) &mdash;
         Installer powered by <a href="https://esphome.github.io/esp-web-tools/">ESP Web Tools</a>.
       </div>
     </div>

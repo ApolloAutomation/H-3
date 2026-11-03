@@ -3,6 +3,8 @@ name: Weekly Firmware Build
 on:
   schedule:
     - cron: '0 0 * * 1'
+  # Re-check current main on demand; a re-run rebuilds the old commit
+  workflow_dispatch:
 
 permissions:
   contents: read
