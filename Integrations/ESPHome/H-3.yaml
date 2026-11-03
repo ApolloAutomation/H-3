@@ -17,8 +17,8 @@ esphome:
     name: "ApolloAutomation.H-3"
     version: "${version}"
 
-  # Hard floor is 2024.6.0; tracks the fleet
-  min_version: 2026.8.0
+  # improv_ble (renamed from esp32_improv) needs 2026.10
+  min_version: 2026.10.0
   on_boot:
     - priority: 500
       then:
@@ -81,6 +81,7 @@ esphome:
     - light.turn_off: nose_light
     - light.turn_off: hat_light
 
+# Compiled into shipped units; keep this path on main
 dashboard_import:
   package_import_url: github://ApolloAutomation/H-3/Integrations/ESPHome/H-3.yaml
   import_full_config: false
@@ -104,7 +105,7 @@ bluetooth_proxy:
   id: ble_proxy
 
 # Improv over BLE; required for the M4E badge
-esp32_improv:
+improv_ble:
   id: ble_improv
   # 'none' = no physical authorization step
   authorizer: none
@@ -130,8 +131,11 @@ update:
     source: ${ota_stable_manifest}
 
 wifi:
+  id: wifi_component
   power_save_mode: HIGH
   output_power: 10
+  # Keeps today's no-reboot on lost Wi-Fi; 2026.11 drops the AP exemption
+  reboot_timeout: 0s
   ap:
     ssid: "Apollo H3 Hotspot"
 
@@ -319,6 +323,9 @@ sensor:
     id: wifi_signal_db
     update_interval: 60s
     entity_category: "diagnostic"
+    # WWHA rate limit; ignores a few dBm of jitter
+    filters:
+      - delta: 5.0
 
 # Wi-Fi diagnostics, disabled by default
 text_sensor:

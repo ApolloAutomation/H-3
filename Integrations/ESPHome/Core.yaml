@@ -1,5 +1,5 @@
 substitutions:
-  version: "26.10.12.1"
+  version: "26.11.2.1"
 
   run_duration_default: "90s"
   run_duration_gpio: "90s"
@@ -162,6 +162,7 @@ number:
     initial_value: 24
     icon: "mdi:arrow-collapse-right"
     entity_category: "config"
+    device_class: duration
     unit_of_measurement: "h"
     on_value:
       then:
@@ -453,11 +454,17 @@ sensor:
   - platform: internal_temperature
     name: "ESP Temperature"
     id: sys_esp_temperature
+    # WWHA rate limit; first sample after boot passes
+    filters:
+      - delta: 0.5
 
   - platform: uptime
     name: Uptime
     id: sys_uptime
     update_interval: 60s
+    # Must exceed the 60s step; reports about every 5 min
+    filters:
+      - delta: 300
 
 light:
   # 37 LEDs on one GPIO3 line. The chain itself is the All Lights entity, so
@@ -591,7 +598,8 @@ light:
           name: "Sandstorm"
           update_interval: 20ms  # Very fast updates for rave effect
           lambda: |-
-            const float PI = 3.14159265359;
+            // Not PI: Arduino.h #defines PI
+            const float kPi = 3.14159265359;
             static int phase = 0;
             static int strobe_counter = 0;
             static int color_shift = 0;
@@ -633,7 +641,7 @@ light:
                 int wave_offset = (int)(position_factor * 180);
 
                 // Pulsing intensity based on sine wave
-                float intensity = 0.5 + 0.5 * sin((phase + wave_offset) * PI / 180);
+                float intensity = 0.5 + 0.5 * sin((phase + wave_offset) * kPi / 180);
 
                 // Select color based on position and time
                 int color_index = (color_shift + (i % 3)) % 6;
@@ -833,7 +841,10 @@ script:
             - lambda: "id(runTest) = false;"
             - script.execute: all_lights_off
             - lambda: "id(swallow_button_action) = true;"
-            - script.execute: swallow_clear
+            # 3s: a slow double-click resolves at 2.6s; once per install
+            - script.execute:
+                id: swallow_clear
+                window_ms: 3000
             - script.execute: sleep_grace_period
 
   # Delays sleep release so the press gets a window
@@ -844,12 +855,14 @@ script:
       - delay: ${run_duration_gpio}
       - script.execute: resumeSleep
 
-  # Eats the acknowledging press; 2s worst case
+  # Drops button actions until window_ms after the latest arm
   - id: swallow_clear
-    # restart: two callers can arm on one press
+    # restart: the later arm wins, with its own window
     mode: restart
+    parameters:
+      window_ms: int
     then:
-      - delay: 2s
+      - delay: !lambda 'return window_ms;'
       - lambda: "id(swallow_button_action) = false;"
 
   # Shared wake decoding; hold gesture, not double-click
@@ -962,16 +975,21 @@ script:
                         - button.press: btn_play_song_3
                 else:
                   - button.press: btn_play_song_3
-      # Armed after the gesture resolves, not at boot
+      # Armed after the gesture resolves; never cuts a first-boot arm short
       - if:
           condition:
-            lambda: 'return id(wake_button) != 0;'
+            lambda: 'return id(wake_button) != 0 && !id(swallow_button_action);'
           then:
             - lambda: "id(swallow_button_action) = true;"
-            - script.execute: swallow_clear
+            # 2s: no double-click on wake, and every wake pays it
+            - script.execute:
+                id: swallow_clear
+                window_ms: 2000
 
   - id: play_song_1
     then:
+      # Clear first: stop fires on_finished_playback, which would sleep
+      - lambda: "id(song_active) = false;"
       # Must stop first because Rtttl::play() returns early while a song is running
       - rtttl.stop:
       # Zone effects below would fight an All Lights effect writing the same buffer
@@ -1009,6 +1027,8 @@ script:
 
   - id: play_song_2
     then:
+      # Clear first: stop fires on_finished_playback, which would sleep
+      - lambda: "id(song_active) = false;"
       # Must stop first because Rtttl::play() returns early while a song is running
       - rtttl.stop:
       # Zone effects below would fight an All Lights effect writing the same buffer
@@ -1046,6 +1066,8 @@ script:
 
   - id: play_song_3
     then:
+      # Clear first: stop fires on_finished_playback, which would sleep
+      - lambda: "id(song_active) = false;"
       # Must stop first because Rtttl::play() returns early while a song is running
       - rtttl.stop:
       # Zone effects below would fight an All Lights effect writing the same buffer
@@ -1083,6 +1105,8 @@ script:
 
   - id: play_song_4
     then:
+      # Clear first: stop fires on_finished_playback, which would sleep
+      - lambda: "id(song_active) = false;"
       # Must stop first because Rtttl::play() returns early while a song is running
       - rtttl.stop:
       # Zone effects below would fight an All Lights effect writing the same buffer
@@ -1120,6 +1144,8 @@ script:
 
   - id: play_song_5
     then:
+      # Clear first: stop fires on_finished_playback, which would sleep
+      - lambda: "id(song_active) = false;"
       # Must stop first because Rtttl::play() returns early while a song is running
       - rtttl.stop:
       # Zone effects below would fight an All Lights effect writing the same buffer
@@ -1157,6 +1183,8 @@ script:
 
   - id: play_song_6
     then:
+      # Clear first: stop fires on_finished_playback, which would sleep
+      - lambda: "id(song_active) = false;"
       # Must stop first because Rtttl::play() returns early while a song is running
       - rtttl.stop:
       # Zone effects below would fight an All Lights effect writing the same buffer
@@ -1194,6 +1222,8 @@ script:
 
   - id: play_song_x
     then:
+      # Clear first: stop fires on_finished_playback, which would sleep
+      - lambda: "id(song_active) = false;"
       # Must stop first because Rtttl::play() returns early while a song is running
       - rtttl.stop:
       # Zone effects below would fight an All Lights effect writing the same buffer
