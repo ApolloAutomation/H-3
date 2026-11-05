@@ -11,9 +11,13 @@
       <img src="https://esphome.io/images/made-for-esphome-black-on-transparent.svg" alt="Made for ESPHome" width="220">
     </picture>
   </a>
+  &nbsp;&nbsp;
+  <a href="https://works-with.home-assistant.io/">
+    <img src="https://works-with.home-assistant.io/img/Works-With-HA_Default_Digital.svg" alt="Works with Home Assistant" width="260">
+  </a>
 </p>
 
-The H-3 is Apollo Automation's 2026 holiday ornament, the third in our annual charity series. It is a snowman with 37 RGB LEDs, a buzzer and six holiday songs. Press a button and it plays a song with its own light show, with no setup. The H-3 is Made for ESPHome, so you can also install the Smart firmware and control it from Home Assistant.
+The H-3 is Apollo Automation's 2026 holiday ornament, the third in our annual charity series. It is a snowman with 37 RGB LEDs, a buzzer and six holiday songs. Press a button and it plays a song with its own light show, with no setup. The H-3 is Made for ESPHome and certified Works with Home Assistant, so you can also install the Smart firmware and control it from Home Assistant.
 
 **100% of the profits from the H-3 go to [St. Jude Children's Research Hospital](https://www.stjude.org/) this year (2026).**
 
@@ -24,6 +28,7 @@ The H-3 is Apollo Automation's 2026 holiday ornament, the third in our annual ch
 - **Two AA batteries or USB-C**, with deep sleep between songs to save the batteries
 - **Ready to play out of the box** with the Basic firmware. No Wi-Fi or app needed.
 - **Smart firmware for Home Assistant:** change the songs, light effects and volume, run automations, use it as a Bluetooth proxy and get firmware updates over the air
+- **Works with Home Assistant:** certified by the Open Home Foundation
 - **Made for ESPHome:** the configuration is public, and you can take control of it in the ESPHome Device Builder
 - ESP32-C6 with 8 MB flash
 
@@ -100,6 +105,8 @@ The H-3 has two ESPHome firmwares. Install either one at any time from the brows
 
 ### Use it with Home Assistant
 
+The Smart firmware is certified Works with Home Assistant. It talks to Home Assistant locally through the ESPHome integration; the only thing it fetches from the internet is the firmware update check.
+
 - **Controls:** the five zone lights and **All Lights**, **Play Song 1** to **Play Song 6**, **Song Text 1** to **Song Text 6**, **Volume**, **LED Brightness**, **Prevent Sleep**, **Sleep Duration** and **Bluetooth Proxy**. Automations can also call the ornament's ESPHome actions: `play_song_1` to `play_song_6`, and `play_buzzer`, which plays any RTTTL string you pass it. **Song Button 1** to **Song Button 3** show button presses, and **Wake-up Button Pressed** shows which button last woke it.
 - **Updates:** the ornament checks for new firmware soon after it starts and every 6 hours after that, and offers it through its **Firmware Update** entity. With **Prevent Sleep** off, it only checks for and installs updates while it is awake, so keep it awake for an update (see **Battery**). **Firmware Channel** switches between Stable and Beta.
 - **Battery:** the Smart firmware stays awake by default. Turn off **Prevent Sleep** to let it sleep between button presses; press a song button to wake it. Three quick presses of the boot button also switch Prevent Sleep on or off (see [Boot button](#boot-button)). It also wakes on its own every **Sleep Duration** hours (24 by default) to check in with Home Assistant. To keep it awake for an update, create a toggle helper with the entity ID `input_boolean.apollo_ota_mode`, turn it on, then press a song button. The ornament sees the helper once it wakes and connects to Home Assistant. Turn the helper off after the update so it can sleep again.
@@ -136,4 +143,5 @@ Shop: [https://apolloautomation.com/products/apollo-h-3-annual-holiday-ornament-
 Wiki: [https://wiki.apolloautomation.com/products/h3/introduction/](https://wiki.apolloautomation.com/products/h3/introduction/)  
 Firmware installer: [https://apolloautomation.github.io/H-3/](https://apolloautomation.github.io/H-3/)  
 ESPHome device page: [https://devices.esphome.io/devices/Apollo_Automation_H-3/](https://devices.esphome.io/devices/Apollo_Automation_H-3/)  
+Works with Home Assistant: [https://works-with.home-assistant.io/](https://works-with.home-assistant.io/)  
 St. Jude Children's Research Hospital: [https://www.stjude.org/](https://www.stjude.org/)
