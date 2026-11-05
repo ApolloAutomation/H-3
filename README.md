@@ -67,7 +67,7 @@ The H-3 runs on two AA batteries or from its USB-C port. We suggest non-recharge
 - **Basic firmware:** the ornament sleeps whenever it is not playing a song. Press a song button to wake it. It plays that song and goes back to sleep when the song ends. After you put the batteries in or plug in USB-C, it stays awake for about 15 seconds, then sleeps.
 - **Smart firmware:** it stays awake by default so Home Assistant can reach it. To make the batteries last, turn off **Prevent Sleep** (see [Use it with Home Assistant](#use-it-with-home-assistant)).
 
-**First start:** after a fresh install or a factory reset, all 37 LEDs light green for about 5 seconds, then turn off on their own. That green means the firmware started. You don't need to press anything. A button press during those 5 seconds ends the green early and does not play a song.
+**First start:** after a fresh install or a factory reset, all 37 LEDs light green for about 5 seconds, then turn off on their own. That green means the firmware started and every LED works. You don't need to press anything. A button press during those 5 seconds ends the green early and does not play a song. On the Smart firmware the hat then blinks blue until the ornament is connected to Wi-Fi.
 
 ## Firmware
 
@@ -89,7 +89,7 @@ The H-3 has two ESPHome firmwares. Install either one at any time from the brows
 1. Take the batteries out. Hold the boot button on the back of the ornament, plug in a USB-C data cable, then let go of the button ([boot mode guide](https://wiki.apolloautomation.com/products/h3/troubleshooting/boot-mode/)).
 2. In the installer, click **Connect** under **H-3 Smart (Wi-Fi) Firmware**, pick the ornament's serial port and install it.
 3. When the install finishes, unplug the cable and plug it back in so the ornament restarts normally. All the LEDs light green for about 5 seconds, then turn off.
-4. Connect the ornament to Wi-Fi in one of these ways:
+4. Connect the ornament to Wi-Fi. Until it is connected, the hat blinks blue to show it is ready to set up. Use one of these ways:
    - Click **Connect** in the installer again and enter your Wi-Fi details.
    - Join the `Apollo H3 Hotspot` Wi-Fi network from a phone and choose your network.
    - Set it up from Home Assistant over Bluetooth with [Improv via BLE](https://www.home-assistant.io/integrations/improv_ble/).
