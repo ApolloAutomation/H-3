@@ -60,6 +60,8 @@ On the Smart firmware each song is a **Song Text** entity in Home Assistant that
 
 On the Smart firmware each zone has its own color, brightness and effect. There are 11 effects, including Slow Pulse, Fast Pulse and the effect from each song. **All Lights** drives all 37 LEDs as one strip, so it paints over whatever the zones are showing.
 
+**Brightness limit:** by default the LEDs never go above 40% brightness, the same limit as the H-2. Every light's brightness, including 100% in Home Assistant, is scaled to that limit, and colors stay the same. The Basic firmware always uses 40%. On the Smart firmware the **LED Brightness** slider moves the limit anywhere from 25% to 100%.
+
 ## Power and sleep
 
 The H-3 runs on two AA batteries or from its USB-C port. We suggest non-rechargeable AAs.
@@ -79,6 +81,7 @@ The H-3 has two ESPHome firmwares. Install either one at any time from the brows
 | Songs and lights from the buttons | Yes | Yes |
 | Home Assistant | No | Yes, over Wi-Fi |
 | Change songs, light effects and volume | No | Yes |
+| LED brightness limit | 40% | 40% by default, 25% to 100% with the LED Brightness slider |
 | Bluetooth proxy | No | Yes, off by default |
 | Firmware updates | Reinstall from the browser installer | Over the air, Stable or Beta channel |
 | Sleep | Sleeps between songs | Stays awake until you turn off Prevent Sleep |
@@ -97,7 +100,7 @@ The H-3 has two ESPHome firmwares. Install either one at any time from the brows
 
 ### Use it with Home Assistant
 
-- **Controls:** the five zone lights and **All Lights**, **Play Song 1** to **Play Song 6**, **Song Text 1** to **Song Text 6**, **Volume**, **Prevent Sleep**, **Sleep Duration** and **Bluetooth Proxy**. Automations can also call the ornament's ESPHome actions: `play_song_1` to `play_song_6`, and `play_buzzer`, which plays any RTTTL string you pass it. **Song Button 1** to **Song Button 3** show button presses, and **Wake-up Button Pressed** shows which button last woke it.
+- **Controls:** the five zone lights and **All Lights**, **Play Song 1** to **Play Song 6**, **Song Text 1** to **Song Text 6**, **Volume**, **LED Brightness**, **Prevent Sleep**, **Sleep Duration** and **Bluetooth Proxy**. Automations can also call the ornament's ESPHome actions: `play_song_1` to `play_song_6`, and `play_buzzer`, which plays any RTTTL string you pass it. **Song Button 1** to **Song Button 3** show button presses, and **Wake-up Button Pressed** shows which button last woke it.
 - **Updates:** the ornament checks for new firmware soon after it starts and every 6 hours after that, and offers it through its **Firmware Update** entity. With **Prevent Sleep** off, it only checks for and installs updates while it is awake, so keep it awake for an update (see **Battery**). **Firmware Channel** switches between Stable and Beta.
 - **Battery:** the Smart firmware stays awake by default. Turn off **Prevent Sleep** to let it sleep between button presses; press a song button to wake it. Three quick presses of the boot button also switch Prevent Sleep on or off (see [Boot button](#boot-button)). It also wakes on its own every **Sleep Duration** hours (24 by default) to check in with Home Assistant. To keep it awake for an update, create a toggle helper with the entity ID `input_boolean.apollo_ota_mode`, turn it on, then press a song button. The ornament sees the helper once it wakes and connects to Home Assistant. Turn the helper off after the update so it can sleep again.
 - **New Wi-Fi network:** with Prevent Sleep off, the ornament goes back to sleep before its hotspot starts. Wake it with a song button, then hold the boot button for 3 to 10 seconds and let go before the song ends. That turns Prevent Sleep on, and about 90 seconds after the wake the `Apollo H3 Hotspot` network and Improv via BLE become available. Turn Prevent Sleep off again once it is back online.

@@ -232,6 +232,41 @@ api:
             - lambda: |-
                 ESP_LOGW("Apollo", "Preventing Deep Sleep Due To OTA Or Switch");
                 id(deep_sleep_1).prevent_deep_sleep();
+number:
+  # Sets the cap Core.yaml gives all 37 LEDs; H-3D keeps it fixed
+  - platform: template
+    name: "LED Brightness"
+    id: led_brightness
+    icon: mdi:brightness-6
+    entity_category: "config"
+    # Below 25% the gamma curve leaves about one LED level: effects freeze
+    min_value: 25
+    max_value: 100
+    step: 5
+    initial_value: ${led_max_brightness}
+    unit_of_measurement: "%"
+    mode: slider
+    optimistic: true
+    restore_value: true
+    on_value:
+      - lambda: |-
+          // Also runs at boot, before the lights are set up: only the
+          // correction is set then, and lights that are on get redrawn.
+          // Zones first, All Lights last, so All Lights stays on top.
+          const float cap = x / 100.0f;
+          for (auto *light : {id(body_light), id(mouth_light), id(eyes_light),
+                              id(nose_light), id(hat_light), id(all_lights)}) {
+            auto *out = static_cast<light::AddressableLight *>(light->get_output());
+            out->set_correction(cap, cap, cap);
+            // Effects and transitions pick it up on their next frame; only a
+            // static colour needs a redraw
+            if (light->is_ready() && light->current_values.is_on() &&
+                !light->is_transitioning()) {
+              out->update_state(light);
+              out->schedule_show();
+            }
+          }
+
 select:
   - platform: template
     name: "Firmware Channel"
@@ -390,6 +425,7 @@ script:
           id(update_http_request).set_source_url(url);
       - component.update: update_http_request
 
+  # 80%, as the light test: readable under the 40% cap
   - id: statusCheck
     then:
       - if:
@@ -399,7 +435,7 @@ script:
             - logger.log: "Apollo Automation: Connected To HA"
             - light.turn_on:
                 id: body_light
-                brightness: 40%
+                brightness: 80%
                 red: 0%
                 green: 0%
                 blue: 100%
@@ -411,7 +447,7 @@ script:
                   - logger.log: "Apollo Automation: Connected To Wifi"
                   - light.turn_on:
                       id: body_light
-                      brightness: 40%
+                      brightness: 80%
                       red: 0%
                       green: 100%
                       blue: 0%
@@ -419,7 +455,7 @@ script:
                   - logger.log: "Apollo Automation: Not Connected To Wifi"
                   - light.turn_on:
                       id: body_light
-                      brightness: 40%
+                      brightness: 80%
                       red: 100%
                       green: 100%
                       blue: 0%

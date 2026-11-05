@@ -1,6 +1,10 @@
 substitutions:
   version: "26.11.5.1"
 
+  # Brightness cap on all 37 LEDs, the H-2's 40%. H-3.yaml's LED Brightness
+  # slider changes it at runtime; H-3D keeps it fixed
+  led_max_brightness: "40"
+
   run_duration_default: "90s"
   run_duration_gpio: "90s"
   timer_wake_enabled: "true"
@@ -471,6 +475,8 @@ light:
     id: all_lights
     name: "All Lights"
     pin: GPIO3
+    # Partitions apply their own correction, so each carries the cap
+    color_correct: ["${led_max_brightness}%", "${led_max_brightness}%", "${led_max_brightness}%"]
     default_transition_length: 0s
     chipset: WS2812
     num_leds: 37
@@ -779,6 +785,7 @@ light:
     id: body_light
     name: "Body Light"
     default_transition_length: 0s
+    color_correct: ["${led_max_brightness}%", "${led_max_brightness}%", "${led_max_brightness}%"]
     segments:
       - { id: all_lights, from: 0, to: 23 }
     effects: *led_effects
@@ -788,6 +795,7 @@ light:
     id: mouth_light
     name: "Mouth Light"
     default_transition_length: 0s
+    color_correct: ["${led_max_brightness}%", "${led_max_brightness}%", "${led_max_brightness}%"]
     segments:
       - { id: all_lights, from: 24, to: 28 }
     effects: *led_effects
@@ -797,6 +805,7 @@ light:
     id: nose_light
     name: "Nose Light"
     default_transition_length: 0s
+    color_correct: ["${led_max_brightness}%", "${led_max_brightness}%", "${led_max_brightness}%"]
     segments:
       - { id: all_lights, from: 29, to: 29 }
     effects: *led_effects
@@ -806,6 +815,7 @@ light:
     id: eyes_light
     name: "Eyes Light"
     default_transition_length: 0s
+    color_correct: ["${led_max_brightness}%", "${led_max_brightness}%", "${led_max_brightness}%"]
     segments:
       - { id: all_lights, from: 30, to: 31 }
     effects: *led_effects
@@ -815,6 +825,7 @@ light:
     id: hat_light
     name: "Hat Light"
     default_transition_length: 0s
+    color_correct: ["${led_max_brightness}%", "${led_max_brightness}%", "${led_max_brightness}%"]
     segments:
       - { id: all_lights, from: 32, to: 36 }
     effects: *led_effects
@@ -1264,34 +1275,35 @@ script:
   - id: testScript
     then:
       # Holds sleep off for the 5s; resumeSleep below hands it back
+      # 80% as on the H-2: under the 40% cap it stays visible at the bench
       - lambda: "id(deep_sleep_1).prevent_deep_sleep();"
       - light.turn_on:
           id: body_light
-          brightness: 30%
+          brightness: 80%
           red: 0%
           green: 100%
           blue: 0%
       - light.turn_on:
           id: mouth_light
-          brightness: 30%
+          brightness: 80%
           red: 0%
           green: 100%
           blue: 0%
       - light.turn_on:
           id: eyes_light
-          brightness: 30%
+          brightness: 80%
           red: 0%
           green: 100%
           blue: 0%
       - light.turn_on:
           id: nose_light
-          brightness: 30%
+          brightness: 80%
           red: 0%
           green: 100%
           blue: 0%
       - light.turn_on:
           id: hat_light
-          brightness: 30%
+          brightness: 80%
           red: 0%
           green: 100%
           blue: 0%
