@@ -84,7 +84,7 @@ The H-3 has two ESPHome firmwares. Install either one at any time from the brows
 
 ### Use it with Home Assistant
 
-The Smart firmware is certified Works with Home Assistant. It talks to Home Assistant locally through the ESPHome integration; the only thing it fetches from the internet is the firmware update check.
+The Smart firmware is certified Works with Home Assistant. It talks to Home Assistant locally through the ESPHome integration and only goes online to check for and download firmware updates.
 
 - **Controls:** the five zone lights and **All Lights**, **Play Song 1** to **Play Song 6**, **Song Text 1** to **Song Text 6**, **Volume**, **LED Brightness**, **Prevent Sleep**, **Sleep Duration** and **Bluetooth Proxy**. Automations can also call the ornament's ESPHome actions: `play_song_1` to `play_song_6`, and `play_buzzer`, which plays any RTTTL string you pass it. **Song Button 1** to **Song Button 3** show button presses, and **Wake-up Button Pressed** shows which button last woke it.
 - **Updates:** the ornament checks for new firmware soon after it starts and every 6 hours after that, and offers it through its **Firmware Update** entity. With **Prevent Sleep** off, it only checks for and installs updates while it is awake, so keep it awake for an update (see **Battery**). **Firmware Channel** switches between Stable and Beta.
