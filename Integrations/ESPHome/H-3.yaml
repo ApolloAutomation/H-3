@@ -4,6 +4,8 @@ substitutions:
   beta_manifest_base: "https://github.com/ApolloAutomation/H-3/releases/download/beta-fw"
   ota_stable_manifest: "${stable_manifest_base}/firmware/manifest.json"
   ota_beta_manifest: "${beta_manifest_base}/manifest-standard.json"
+  # Quiet gap that ends a run of short BOOT presses
+  boot_click_gap: "700ms"
 
 esphome:
   name: "apollo-h-3"
@@ -153,16 +155,26 @@ web_server:
   port: 80
   version: 3
 
+globals:
+  # Short BOOT presses waiting for boot_click_resolve
+  - id: boot_clicks
+    type: uint8_t
+    restore_value: no
+    initial_value: "0"
+
 # Drives hat zone; must be a BinaryOutput
 output:
   - platform: template
     type: binary
     id: improv_status_led
     write_action:
-      # LED checks need all 37 green; the blink resumes on its next toggle
+      # LED checks need all 37 green, and the sleep feedback the whole
+      # ornament; the blink resumes on its next toggle
       - if:
           condition:
-            lambda: "return !id(testScript).is_running() && !id(lightTest).is_running();"
+            lambda: |-
+              return !id(testScript).is_running() && !id(lightTest).is_running() &&
+                     !id(sleep_mode_feedback).is_running();
           then:
             - if:
                 condition:
@@ -438,6 +450,109 @@ script:
           then:
             - lambda: |-
                 id(deep_sleep_1).allow_deep_sleep();
+
+  # Short BOOT press from Core.yaml: 1-2 presses = status + light test,
+  # 3 or more = toggle Prevent Sleep. Resolved once the presses stop, so a
+  # triple press never starts the light test.
+  - id: boot_short_press
+    then:
+      # Under 30ms is contact bounce; GPIO9 has no debounce filter
+      - if:
+          condition:
+            lambda: 'return (millis() - id(button_press_timestamp)) >= 30;'
+          then:
+            - lambda: 'if (id(boot_clicks) < 255) id(boot_clicks)++;'
+            - script.execute: boot_click_resolve
+
+  - id: boot_click_resolve
+    # restart: every press pushes the decision back
+    mode: restart
+    then:
+      - delay: ${boot_click_gap}
+      - if:
+          condition:
+            binary_sensor.is_on: reset_button
+          then:
+            # Still held: a hold, not a click; its release decides
+            - lambda: 'id(boot_clicks) = 0;'
+          else:
+            - if:
+                condition:
+                  lambda: 'return id(boot_clicks) >= 3;'
+                then:
+                  - lambda: 'id(boot_clicks) = 0;'
+                  - script.execute: toggle_prevent_sleep
+                else:
+                  - lambda: 'id(boot_clicks) = 0;'
+                  # script.wait, not delay(): delay blocks loop()
+                  - script.execute: statusCheck
+                  - script.wait: statusCheck
+                  - script.execute: lightTest
+
+  - id: toggle_prevent_sleep
+    then:
+      - if:
+          condition:
+            switch.is_on: prevent_sleep
+          then:
+            - switch.turn_off: prevent_sleep
+            # on_turn_off releases sleep at once, which sleeps instantly once
+            # run_duration has passed; give the normal window instead
+            - lambda: 'id(deep_sleep_1).prevent_deep_sleep();'
+            - script.execute:
+                id: sleep_mode_feedback
+                awake: false
+            - script.execute: sleep_grace_period
+          else:
+            # on_turn_on blocks sleep
+            - switch.turn_on: prevent_sleep
+            - script.stop: sleep_grace_period
+            - script.execute:
+                id: sleep_mode_feedback
+                awake: true
+
+  # Whole ornament: white for 3s = stays awake (Prevent Sleep on), purple
+  # fading out = sleep allowed. Not red (factory fail), green (LED check)
+  # or blue (Improv blink).
+  - id: sleep_mode_feedback
+    parameters:
+      awake: bool
+    then:
+      - script.stop: statusCheck
+      - script.stop: lightTest
+      # Clear first: stop fires on_finished_playback, which would sleep
+      - lambda: "id(song_active) = false;"
+      - rtttl.stop:
+      - light.turn_off: all_lights
+      - lambda: |-
+          for (auto *zone : {id(body_light), id(mouth_light), id(eyes_light), id(nose_light), id(hat_light)}) {
+            auto call = zone->turn_on();
+            call.set_effect("None");
+            call.set_transition_length(0);
+            call.set_brightness(0.6f);
+            if (awake) {
+              call.set_rgb(1.0f, 1.0f, 1.0f);
+            } else {
+              call.set_rgb(0.6f, 0.0f, 1.0f);
+            }
+            call.perform();
+          }
+      - if:
+          condition:
+            lambda: "return awake;"
+          then:
+            - delay: 3s
+            - script.execute: all_lights_off
+          else:
+            - delay: 500ms
+            - lambda: |-
+                for (auto *zone : {id(body_light), id(mouth_light), id(eyes_light), id(nose_light), id(hat_light)}) {
+                  auto call = zone->turn_off();
+                  call.set_transition_length(2500);
+                  call.perform();
+                }
+            # Running until the fade ends keeps the Improv blink off the hat
+            - delay: 2500ms
 
 
 packages:

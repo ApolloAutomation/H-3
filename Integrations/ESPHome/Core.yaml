@@ -291,10 +291,8 @@ binary_sensor:
                         condition:
                           lambda: 'return !id(swallow_button_action);'
                         then:
-                          # script.wait, not delay(): delay blocks loop()
-                          - script.execute: statusCheck
-                          - script.wait: statusCheck
-                          - script.execute: lightTest
+                          # Per variant: H-3 counts triple presses
+                          - script.execute: boot_short_press
 
   # H-3 Individual Song Buttons (3 buttons)
   - platform: gpio

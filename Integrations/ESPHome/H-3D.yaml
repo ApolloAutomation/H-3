@@ -64,6 +64,13 @@ switch:
     entity_category: "config"
 
 script:
+  # Short BOOT press: status, then light test. No triple press here
+  - id: boot_short_press
+    then:
+      # script.wait, not delay(): delay blocks loop()
+      - script.execute: statusCheck
+      - script.wait: statusCheck
+      - script.execute: lightTest
   - id: statusCheck
     then:
       - light.turn_on:
