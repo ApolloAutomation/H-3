@@ -1,5 +1,5 @@
 substitutions:
-  version: "26.11.2.1"
+  version: "26.11.5.1"
 
   run_duration_default: "90s"
   run_duration_gpio: "90s"
@@ -44,7 +44,7 @@ globals:
     restore_value: no
     type: uint32_t
     initial_value: '0'
-  # First boot, not yet acknowledged
+  # First boot after a flash or factory reset; cleared after the 5s green
   - id: runTest
     restore_value: yes
     type: bool
@@ -831,13 +831,15 @@ script:
       - light.turn_off: nose_light
       - light.turn_off: hat_light
 
-  # Acknowledges first-boot indicator; no-op once clear
+  # A press during the first-boot green ends it early; no-op once clear
   - id: dismiss_first_boot
     then:
       - if:
           condition:
             lambda: "return id(runTest);"
           then:
+            # Its timeout would otherwise blank a song and release sleep
+            - script.stop: testScript
             - lambda: "id(runTest) = false;"
             - script.execute: all_lights_off
             - lambda: "id(swallow_button_action) = true;"
@@ -1259,10 +1261,11 @@ script:
             - logger.log: "Song did not start - check the RTTTL string"
             - script.execute: all_lights_off
 
-  # First-boot indicator; only dismiss_first_boot clears it
+  # First-boot indicator, as on H-1/H-2: every zone green for 5s, then off on
+  # its own. A press during the 5s ends it early via dismiss_first_boot.
   - id: testScript
     then:
-      # H-3D would otherwise sleep mid-test
+      # Holds sleep off for the 5s; resumeSleep below hands it back
       - lambda: "id(deep_sleep_1).prevent_deep_sleep();"
       - light.turn_on:
           id: body_light
@@ -1294,6 +1297,17 @@ script:
           red: 0%
           green: 100%
           blue: 0%
+      - delay: 5s
+      - lambda: "id(runTest) = false;"
+      # A song Home Assistant started meanwhile keeps its lights
+      - if:
+          condition:
+            lambda: 'return !id(song_active);'
+          then:
+            - script.execute: all_lights_off
+      # No swallow and no grace period: nothing was pressed, so sleep
+      # follows run_duration as on any other boot
+      - script.execute: resumeSleep
 
   # Manual zone check; never touches runTest
   - id: lightTest
