@@ -19,14 +19,6 @@ The H-3 is Apollo Automation's 2026 holiday ornament, the third in our annual ch
 - **[Made for ESPHome](https://devices.esphome.io/devices/Apollo_Automation_H-3/):** the configuration is public, and you can take control of it in the ESPHome Device Builder
 - ESP32-C6 with 8 MB flash
 
-<table>
-  <tr>
-    <td align="center" width="33%"><img src="images/h-3-front.jpg" alt="Front of the H-3: the snowman's LEDs and the three song buttons"><br><sub>Front: LEDs and song buttons</sub></td>
-    <td align="center" width="33%"><img src="images/h-3-back.jpg" alt="Back of the H-3: battery holder, USB-C port and boot button"><br><sub>Back: batteries, USB-C and boot button</sub></td>
-    <td align="center" width="33%"><img src="images/h-3-tree.jpg" alt="The H-3 hanging on a Christmas tree"><br><sub>On the tree</sub></td>
-  </tr>
-</table>
-
 ## Songs and buttons
 
 The three buttons on the front of the snowman play the songs. Press a button for its first song, or hold it for about a second for its second song. While the ornament is awake, a double-click also plays the second song, and pressing a button during a song switches to the new song.
