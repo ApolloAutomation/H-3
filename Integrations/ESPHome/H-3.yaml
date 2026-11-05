@@ -509,7 +509,12 @@ script:
           condition:
             binary_sensor.is_on: reset_button
           then:
-            # Still held: a hold, not a click; its release decides
+            # Still held: keep the count. A short release counts it and
+            # restarts this script; a hold (3s+) or a swallowed press does
+            # not, so still running after the release means the run is over
+            - wait_until:
+                condition:
+                  binary_sensor.is_off: reset_button
             - lambda: 'id(boot_clicks) = 0;'
           else:
             - if:
@@ -551,6 +556,8 @@ script:
   # fading out = sleep allowed. Not red (factory fail), green (LED check)
   # or blue (Improv blink).
   - id: sleep_mode_feedback
+    # restart: a quick second toggle shows the newest state
+    mode: restart
     parameters:
       awake: bool
     then:
@@ -578,10 +585,18 @@ script:
             lambda: "return awake;"
           then:
             - delay: 3s
-            - script.execute: all_lights_off
+            # A song pressed meanwhile keeps its lights
+            - if:
+                condition:
+                  lambda: "return !id(song_active);"
+                then:
+                  - script.execute: all_lights_off
           else:
             - delay: 500ms
             - lambda: |-
+                // A song pressed meanwhile keeps its lights
+                if (id(song_active))
+                  return;
                 for (auto *zone : {id(body_light), id(mouth_light), id(eyes_light), id(nose_light), id(hat_light)}) {
                   auto call = zone->turn_off();
                   call.set_transition_length(2500);

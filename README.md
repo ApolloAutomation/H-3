@@ -96,7 +96,7 @@ The H-3 has two ESPHome firmwares. Install either one at any time from the brows
 
 1. Take the batteries out. Hold the boot button on the back of the ornament, plug in a USB-C data cable, then let go of the button ([boot mode guide](https://wiki.apolloautomation.com/products/h3/troubleshooting/boot-mode/)).
 2. In the installer, click **Connect** under **H-3 Smart (Wi-Fi) Firmware**, pick the ornament's serial port and install it.
-3. When the install finishes, unplug the cable and plug it back in so the ornament restarts normally. All the LEDs light green for about 5 seconds, then turn off.
+3. When the install finishes, unplug the cable and plug it back in so the ornament restarts normally. After a fresh install, all the LEDs light green for about 5 seconds, then turn off.
 4. Connect the ornament to Wi-Fi. Until it is connected, the hat blinks blue to show it is ready to set up. Use one of these ways:
    - Click **Connect** in the installer again and enter your Wi-Fi details.
    - Join the `Apollo H3 Hotspot` Wi-Fi network from a phone and choose your network.
