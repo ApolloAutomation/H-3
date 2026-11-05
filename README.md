@@ -1,20 +1,7 @@
 # Apollo H-3 Holiday Ornament
 
 <p align="center">
-  <img src="images/h-3-hero.jpg" alt="The Apollo H-3 snowman ornament with its LEDs lit" width="640">
-</p>
-
-<p align="center">
-  <a href="https://devices.esphome.io/devices/Apollo_Automation_H-3/">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://esphome.io/images/made-for-esphome-white-on-transparent.svg">
-      <img src="https://esphome.io/images/made-for-esphome-black-on-transparent.svg" alt="Made for ESPHome" width="220">
-    </picture>
-  </a>
-  &nbsp;&nbsp;
-  <a href="https://works-with.home-assistant.io/">
-    <img src="https://works-with.home-assistant.io/img/Works-With-HA_Default_Digital.svg" alt="Works with Home Assistant" width="260">
-  </a>
+  <img src="images/h-3-hero.jpg" alt="The Apollo H-3 snowman ornament lit in red and green beside holiday gifts, with the Works with Home Assistant and Made for ESPHome badges" width="640">
 </p>
 
 The H-3 is Apollo Automation's 2026 holiday ornament, the third in our annual charity series. It is a snowman with 37 RGB LEDs, a buzzer and six holiday songs. Press a button and it plays a song with its own light show, with no setup. The H-3 is Made for ESPHome and certified Works with Home Assistant, so you can also install the Smart firmware and control it from Home Assistant.
@@ -28,8 +15,8 @@ The H-3 is Apollo Automation's 2026 holiday ornament, the third in our annual ch
 - **Two AA batteries or USB-C**, with deep sleep between songs to save the batteries
 - **Ready to play out of the box** with the Basic firmware. No Wi-Fi or app needed.
 - **Smart firmware for Home Assistant:** change the songs, light effects and volume, run automations, use it as a Bluetooth proxy and get firmware updates over the air
-- **Works with Home Assistant:** certified by the Open Home Foundation
-- **Made for ESPHome:** the configuration is public, and you can take control of it in the ESPHome Device Builder
+- **[Works with Home Assistant](https://works-with.home-assistant.io/):** certified by the Open Home Foundation
+- **[Made for ESPHome](https://devices.esphome.io/devices/Apollo_Automation_H-3/):** the configuration is public, and you can take control of it in the ESPHome Device Builder
 - ESP32-C6 with 8 MB flash
 
 <table>
