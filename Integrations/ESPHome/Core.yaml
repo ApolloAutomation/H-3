@@ -1,5 +1,9 @@
 substitutions:
-  version: "26.11.2.1"
+  version: "26.11.5.1"
+
+  # Brightness cap on all 37 LEDs, the H-2's 40%. H-3.yaml's LED Brightness
+  # slider changes it at runtime; H-3D keeps it fixed
+  led_max_brightness: "40"
 
   run_duration_default: "90s"
   run_duration_gpio: "90s"
@@ -44,7 +48,7 @@ globals:
     restore_value: no
     type: uint32_t
     initial_value: '0'
-  # First boot, not yet acknowledged
+  # First boot after a flash or factory reset; cleared after the 5s green
   - id: runTest
     restore_value: yes
     type: bool
@@ -291,10 +295,8 @@ binary_sensor:
                         condition:
                           lambda: 'return !id(swallow_button_action);'
                         then:
-                          # script.wait, not delay(): delay blocks loop()
-                          - script.execute: statusCheck
-                          - script.wait: statusCheck
-                          - script.execute: lightTest
+                          # Per variant: H-3 counts triple presses
+                          - script.execute: boot_short_press
 
   # H-3 Individual Song Buttons (3 buttons)
   - platform: gpio
@@ -473,6 +475,8 @@ light:
     id: all_lights
     name: "All Lights"
     pin: GPIO3
+    # Partitions apply their own correction, so each carries the cap
+    color_correct: ["${led_max_brightness}%", "${led_max_brightness}%", "${led_max_brightness}%"]
     default_transition_length: 0s
     chipset: WS2812
     num_leds: 37
@@ -781,6 +785,7 @@ light:
     id: body_light
     name: "Body Light"
     default_transition_length: 0s
+    color_correct: ["${led_max_brightness}%", "${led_max_brightness}%", "${led_max_brightness}%"]
     segments:
       - { id: all_lights, from: 0, to: 23 }
     effects: *led_effects
@@ -790,6 +795,7 @@ light:
     id: mouth_light
     name: "Mouth Light"
     default_transition_length: 0s
+    color_correct: ["${led_max_brightness}%", "${led_max_brightness}%", "${led_max_brightness}%"]
     segments:
       - { id: all_lights, from: 24, to: 28 }
     effects: *led_effects
@@ -799,6 +805,7 @@ light:
     id: nose_light
     name: "Nose Light"
     default_transition_length: 0s
+    color_correct: ["${led_max_brightness}%", "${led_max_brightness}%", "${led_max_brightness}%"]
     segments:
       - { id: all_lights, from: 29, to: 29 }
     effects: *led_effects
@@ -808,6 +815,7 @@ light:
     id: eyes_light
     name: "Eyes Light"
     default_transition_length: 0s
+    color_correct: ["${led_max_brightness}%", "${led_max_brightness}%", "${led_max_brightness}%"]
     segments:
       - { id: all_lights, from: 30, to: 31 }
     effects: *led_effects
@@ -817,6 +825,7 @@ light:
     id: hat_light
     name: "Hat Light"
     default_transition_length: 0s
+    color_correct: ["${led_max_brightness}%", "${led_max_brightness}%", "${led_max_brightness}%"]
     segments:
       - { id: all_lights, from: 32, to: 36 }
     effects: *led_effects
@@ -831,13 +840,15 @@ script:
       - light.turn_off: nose_light
       - light.turn_off: hat_light
 
-  # Acknowledges first-boot indicator; no-op once clear
+  # A press during the first-boot green ends it early; no-op once clear
   - id: dismiss_first_boot
     then:
       - if:
           condition:
             lambda: "return id(runTest);"
           then:
+            # Its timeout would otherwise blank a song and release sleep
+            - script.stop: testScript
             - lambda: "id(runTest) = false;"
             - script.execute: all_lights_off
             - lambda: "id(swallow_button_action) = true;"
@@ -1259,41 +1270,54 @@ script:
             - logger.log: "Song did not start - check the RTTTL string"
             - script.execute: all_lights_off
 
-  # First-boot indicator; only dismiss_first_boot clears it
+  # First-boot indicator, as on H-1/H-2: every zone green for 5s, then off on
+  # its own. A press during the 5s ends it early via dismiss_first_boot.
   - id: testScript
     then:
-      # H-3D would otherwise sleep mid-test
+      # Holds sleep off for the 5s; resumeSleep below hands it back
+      # 80% as on the H-2: under the 40% cap it stays visible at the bench
       - lambda: "id(deep_sleep_1).prevent_deep_sleep();"
       - light.turn_on:
           id: body_light
-          brightness: 30%
+          brightness: 80%
           red: 0%
           green: 100%
           blue: 0%
       - light.turn_on:
           id: mouth_light
-          brightness: 30%
+          brightness: 80%
           red: 0%
           green: 100%
           blue: 0%
       - light.turn_on:
           id: eyes_light
-          brightness: 30%
+          brightness: 80%
           red: 0%
           green: 100%
           blue: 0%
       - light.turn_on:
           id: nose_light
-          brightness: 30%
+          brightness: 80%
           red: 0%
           green: 100%
           blue: 0%
       - light.turn_on:
           id: hat_light
-          brightness: 30%
+          brightness: 80%
           red: 0%
           green: 100%
           blue: 0%
+      - delay: 5s
+      - lambda: "id(runTest) = false;"
+      # A song Home Assistant started meanwhile keeps its lights
+      - if:
+          condition:
+            lambda: 'return !id(song_active);'
+          then:
+            - script.execute: all_lights_off
+      # No swallow and no grace period: nothing was pressed, so sleep
+      # follows run_duration as on any other boot
+      - script.execute: resumeSleep
 
   # Manual zone check; never touches runTest
   - id: lightTest
