@@ -1,5 +1,5 @@
 substitutions:
-  version: "26.11.5.1"
+  version: "26.11.6.1"
 
   # Brightness cap on all 37 LEDs, the H-2's 40%. H-3.yaml's LED Brightness
   # slider changes it at runtime; H-3D keeps it fixed
@@ -65,6 +65,22 @@ globals:
   # Which button woke us (0 = none)
   - id: wake_button
     type: uint8_t
+    restore_value: no
+    initial_value: '0'
+  # Set when wake_decoder finishes; the awake 1+3 combo waits for it, as the
+  # decoder already handles a combo held through the wake
+  - id: wake_decoded
+    type: bool
+    restore_value: no
+    initial_value: "false"
+  # Buttons 1+3 combo played; holds the swallow until both are released
+  - id: combo_1_3_active
+    type: bool
+    restore_value: no
+    initial_value: "false"
+  # When song 7 started; MarchRed counts its beats from here
+  - id: march_start_ms
+    type: uint32_t
     restore_value: no
     initial_value: '0'
 
@@ -150,6 +166,13 @@ button:
     on_press:
       then:
         - script.execute: play_song_6
+  - platform: template
+    id: btn_play_song_7
+    name: "Play Song 7"
+    icon: mdi:music-note
+    on_press:
+      then:
+        - script.execute: play_song_7
 
 number:
   - platform: template
@@ -257,6 +280,16 @@ text:
     optimistic: true
     # Frozen chorus; song 1 is a different tune
     initial_value: "BuildASnowman:d=8,o=5,b=136:g,g,g,d,g,b,4a,2b,8p,g,g,d,g,b,2a,4p,g,g,g,d,g,b,4a,2b,8p,g,g,g,g,d,g,b,4a,1g"
+  - platform: template
+    name: "Song Text 7"
+    id: song_7
+    icon: mdi:music-note
+    entity_category: "config"
+    restore_value: true
+    mode: text
+    optimistic: true
+    # Imperial March, opening two phrases; buttons 1+3 held together
+    initial_value: "ImperialMarch:d=4,o=5,b=100:g,g,g,8d#.,16a#,g,8d#.,16a#,2g,d6,d6,d6,8d#6.,16a#,f#,8d#.,16a#,2g"
 
 binary_sensor:
   - platform: gpio
@@ -315,6 +348,15 @@ binary_sensor:
     on_press:
       then:
         - script.execute: dismiss_first_boot
+        # Second of buttons 1+3 down -> song 7
+        - if:
+            condition:
+              binary_sensor.is_on: back_button_3
+            then:
+              - script.execute: combo_1_3
+    on_release:
+      then:
+        - script.execute: combo_1_3_release
     # Inter-click gap must stay under single-click wait
     on_multi_click:
     # Double click -> song 4
@@ -417,6 +459,15 @@ binary_sensor:
     on_press:
       then:
         - script.execute: dismiss_first_boot
+        # Second of buttons 1+3 down -> song 7
+        - if:
+            condition:
+              binary_sensor.is_on: back_button_1
+            then:
+              - script.execute: combo_1_3
+    on_release:
+      then:
+        - script.execute: combo_1_3_release
     # Inter-click gap must stay under single-click wait
     on_multi_click:
     # Double click -> song 5 (Barbie Girl)
@@ -681,6 +732,19 @@ light:
               int red_value = 255 * brightness_factor;
 
               // Set LED color with adjusted brightness - pure red
+              it[i] = Color(red_value, 0, 0);
+            }
+      - addressable_lambda:
+          name: "MarchRed"
+          update_interval: 20ms
+          lambda: |-
+            // One red throb per beat of song 7 (b=100: 600ms a beat), counted
+            // from the song's start so each throb lands on a note. Shared
+            // start time, so all five zones stay in step with each other
+            const uint32_t beat_ms = 600;
+            float t = ((millis() - id(march_start_ms)) % beat_ms) / (float) beat_ms;
+            int red_value = 255 * (1.0f - 0.8f * t);
+            for (int i = 0; i < it.size(); i++) {
               it[i] = Color(red_value, 0, 0);
             }
       - addressable_lambda:
@@ -956,7 +1020,18 @@ script:
                       condition:
                         binary_sensor.is_on: back_button_1
                       then:
-                        - button.press: btn_play_song_4
+                        # Button 3 held too -> song 7. Pin read directly: its
+                        # entity may have no state yet this soon after a wake
+                        - if:
+                            condition:
+                              lambda: |-
+                                bool other = gpio_get_level(GPIO_NUM_4);
+                                ESP_LOGI("Apollo", "Wake hold on button 1, button 3 %s", other ? "held" : "not held");
+                                return other;
+                            then:
+                              - button.press: btn_play_song_7
+                            else:
+                              - button.press: btn_play_song_4
                       else:
                         - button.press: btn_play_song_1
                 else:
@@ -981,7 +1056,18 @@ script:
                       condition:
                         binary_sensor.is_on: back_button_3
                       then:
-                        - button.press: btn_play_song_5
+                        # Button 1 held too -> song 7. Pin read directly: its
+                        # entity may have no state yet this soon after a wake
+                        - if:
+                            condition:
+                              lambda: |-
+                                bool other = gpio_get_level(GPIO_NUM_7);
+                                ESP_LOGI("Apollo", "Wake hold on button 3, button 1 %s", other ? "held" : "not held");
+                                return other;
+                            then:
+                              - button.press: btn_play_song_7
+                            else:
+                              - button.press: btn_play_song_5
                       else:
                         - button.press: btn_play_song_3
                 else:
@@ -996,6 +1082,36 @@ script:
             - script.execute:
                 id: swallow_clear
                 window_ms: 2000
+      - lambda: "id(wake_decoded) = true;"
+
+  # Awake combo: second of buttons 1+3 pressed while the other is held
+  - id: combo_1_3
+    then:
+      - if:
+          condition:
+            lambda: 'return id(wake_decoded) && !id(swallow_button_action);'
+          then:
+            - logger.log: "Buttons 1+3 held together - playing song 7"
+            # Swallow both buttons' click and hold actions until both are up;
+            # stopping swallow_clear keeps an earlier window from ending it
+            - script.stop: swallow_clear
+            - lambda: |-
+                id(swallow_button_action) = true;
+                id(combo_1_3_active) = true;
+            - script.execute: play_song_7
+
+  # Last of buttons 1+3 released after a combo: release the swallow once the
+  # single-click wait (0.5s after release) has passed
+  - id: combo_1_3_release
+    then:
+      - if:
+          condition:
+            lambda: 'return id(combo_1_3_active) && !id(back_button_1).state && !id(back_button_3).state;'
+          then:
+            - lambda: "id(combo_1_3_active) = false;"
+            - script.execute:
+                id: swallow_clear
+                window_ms: 1000
 
   - id: play_song_1
     then:
@@ -1222,6 +1338,47 @@ script:
           effect: "Snowfall"
       - rtttl.play:
           rtttl: !lambda 'return id(song_6).state;'
+      - lambda: "id(song_active) = id(rtttl_buzzer).is_playing();"
+      # Malformed string never fires on_finished_playback
+      - if:
+          condition:
+            lambda: 'return !id(song_active);'
+          then:
+            - logger.log: "Song did not start - check the RTTTL string"
+            - script.execute: all_lights_off
+
+  - id: play_song_7
+    then:
+      # Clear first: stop fires on_finished_playback, which would sleep
+      - lambda: "id(song_active) = false;"
+      # Must stop first because Rtttl::play() returns early while a song is running
+      - rtttl.stop:
+      # Zone effects below would fight an All Lights effect writing the same buffer
+      - light.turn_off: all_lights
+      - light.turn_on:
+          brightness: 80%
+          id: body_light
+          effect: "MarchRed"
+      - light.turn_on:
+          brightness: 80%
+          id: mouth_light
+          effect: "MarchRed"
+      - light.turn_on:
+          brightness: 80%
+          id: eyes_light
+          effect: "MarchRed"
+      - light.turn_on:
+          brightness: 80%
+          id: nose_light
+          effect: "MarchRed"
+      - light.turn_on:
+          brightness: 80%
+          id: hat_light
+          effect: "MarchRed"
+      # Beat 1 of MarchRed; set right before the first note
+      - lambda: "id(march_start_ms) = millis();"
+      - rtttl.play:
+          rtttl: !lambda 'return id(song_7).state;'
       - lambda: "id(song_active) = id(rtttl_buzzer).is_playing();"
       # Malformed string never fires on_finished_playback
       - if:

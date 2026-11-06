@@ -219,6 +219,9 @@ api:
     - action: play_song_6
       then:
         - script.execute: play_song_6
+    - action: play_song_7
+      then:
+        - script.execute: play_song_7
   reboot_timeout: 0s
   on_client_connected:
     then:
