@@ -295,6 +295,8 @@ button:
     entity_category: "config"
     on_press:
       - logger.log: "Applying firmware update for the selected channel"
+      # A pending grace window must not release sleep mid-sequence
+      - script.stop: sleep_grace_period
       # OTA download needs the device awake for its whole duration.
       - lambda: |-
           id(deep_sleep_1).prevent_deep_sleep();
@@ -303,17 +305,16 @@ button:
       - script.wait: apply_ota_source
       # Give async manifest fetch time to land
       - delay: 5s
-      - lambda: id(update_http_request).perform(true);
-      # Only reached if the update did not start (e.g. manifest unreachable).
-      # Re-arm deep sleep unless something else is holding the device awake.
-      - if:
-          condition:
-            and:
-              - switch.is_off: prevent_sleep
-              - binary_sensor.is_off: ota_mode
-          then:
-            - lambda: |-
-                id(deep_sleep_1).allow_deep_sleep();
+      # Re-assert: another holder may have released sleep during the wait.
+      # perform() only queues the flash; it runs, blocking, on the next loop
+      # pass, and a successful flash reboots.
+      - lambda: |-
+          id(deep_sleep_1).prevent_deep_sleep();
+          id(update_http_request).perform(true);
+      # Hand sleep back through the normal grace window. Its delay cannot
+      # fire before the queued flash has finished or failed, and
+      # resumeSleep keeps the Prevent Sleep / OTA Mode guards.
+      - script.execute: sleep_grace_period
 
   # Recovery entities; support asks for these first
   - platform: restart
