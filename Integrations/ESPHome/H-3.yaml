@@ -138,6 +138,9 @@ wifi:
   output_power: 10
   # Keeps today's no-reboot on lost Wi-Fi; 2026.11 drops the AP exemption
   reboot_timeout: 0s
+  # Boot-time check runs before Wi-Fi is up; retry once connected
+  on_connect:
+    - component.update: update_http_request
   ap:
     ssid: "Apollo H3 Hotspot"
 
@@ -292,12 +295,26 @@ button:
     entity_category: "config"
     on_press:
       - logger.log: "Applying firmware update for the selected channel"
+      # A pending grace window must not release sleep mid-sequence
+      - script.stop: sleep_grace_period
+      # OTA download needs the device awake for its whole duration.
+      - lambda: |-
+          id(deep_sleep_1).prevent_deep_sleep();
       - delay: 3s
       - script.execute: apply_ota_source
       - script.wait: apply_ota_source
       # Give async manifest fetch time to land
       - delay: 5s
-      - lambda: id(update_http_request).perform(true);
+      # Re-assert: another holder may have released sleep during the wait.
+      # perform() only queues the flash; it runs, blocking, on the next loop
+      # pass, and a successful flash reboots.
+      - lambda: |-
+          id(deep_sleep_1).prevent_deep_sleep();
+          id(update_http_request).perform(true);
+      # Hand sleep back through the normal grace window. Its delay cannot
+      # fire before the queued flash has finished or failed, and
+      # resumeSleep keeps the Prevent Sleep / OTA Mode guards.
+      - script.execute: sleep_grace_period
 
   # Recovery entities; support asks for these first
   - platform: restart

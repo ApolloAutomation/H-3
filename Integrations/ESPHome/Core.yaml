@@ -1,5 +1,5 @@
 substitutions:
-  version: "26.11.5.1"
+  version: "26.11.15.1"
 
   # Brightness cap on all 37 LEDs, the H-2's 40%. H-3.yaml's LED Brightness
   # slider changes it at runtime; H-3D keeps it fixed
@@ -279,6 +279,8 @@ binary_sensor:
             condition:
               lambda: 'return (millis() - id(button_press_timestamp)) >= 10000;'
             then:
+              # Stay awake through the reset, as AIR-1
+              - switch.turn_on: prevent_sleep
               # Remove Wifi
               - switch.turn_on: factory_reset_switch
             else:
