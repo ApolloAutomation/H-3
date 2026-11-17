@@ -157,6 +157,8 @@ web_server:
   id: web_server_component
   port: 80
   version: 3
+  # No firmware upload from the device page; the setup hotspot still allows it
+  ota: false
 
 globals:
   # Short BOOT presses waiting for boot_click_resolve
